@@ -28,7 +28,8 @@
   button.small { padding:8px 10px; font-size:.85rem; }
   .teams { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
   .team { background:#1f2430; border-radius:12px; padding:12px; text-align:center; }
-  .team input { width:100%; text-align:center; font: inherit; font-weight:700; background:transparent; border:none; border-bottom:1px dashed #3a4258; color:var(--ink); padding:4px; }
+  .team input { width:100%; text-align:center; font-size:1rem; font-weight:700; background:#171b25; border:1px solid #4a5370; border-radius:8px; color:var(--ink); padding:8px; margin-bottom:6px; }
+  .team input:focus { outline:2px solid var(--accent); }
   .team.a input { color: var(--a); } .team.b input { color: var(--b); }
   .total { font-size: 2.6rem; font-weight: 800; font-variant-numeric: tabular-nums; margin: 6px 0; }
   .team .row { justify-content:center; }
@@ -223,7 +224,7 @@
   function setRunning(on) {
     $("startBtn").disabled = on;
     $("pauseBtn").disabled = !on && left === TURN;
-    $("pauseBtn").textContent = on ? "Pause" : "Resume";
+    $("pauseBtn").textContent = (on || left === TURN) ? "Pause" : "Resume";
     $("resetBtn").disabled = on || left === TURN;
   }
 
