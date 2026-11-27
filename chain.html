@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Thanksgiving Chain Reaction</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Alfa+Slab+One&family=Archivo:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+/* Same harvest game-show look as jeopardy.html: cranberry ground, gold letters, pumpkin accent. */
+:root{color-scheme:dark;--bg:#2a0a14;--tile:#5c1428;--tile2:#741a33;--gold:#f6b93b;--pump:#ef7d1a;--ink:#fff4e6;--mute:#d9b8a8;--line:#ffffff1f}
+*{box-sizing:border-box;min-width:0}
+body{margin:0;background:radial-gradient(1200px 600px at 50% -10%,#4a1020,var(--bg));color:var(--ink);font:16px/1.5 Archivo,system-ui,sans-serif;overflow-x:clip;min-height:100vh}
+button{font:inherit;color:inherit;cursor:pointer;border:0;background:none}
+button:focus-visible,input:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+header{display:flex;flex-wrap:wrap;align-items:center;gap:12px 20px;justify-content:space-between;padding:16px max(3vw,14px) 10px}
+h1{font:400 clamp(26px,4vw,42px)/1.05 "Alfa Slab One",Georgia,serif;margin:0;color:var(--gold);text-shadow:0 3px 0 #0006}
+h1 span{color:var(--ink)}
+.brand{display:flex;flex-wrap:wrap;align-items:center;gap:12px 16px}
+.brand svg{width:clamp(48px,6vw,72px);height:clamp(48px,6vw,72px);flex:none;animation:bob 1.6s ease-in-out infinite;transform-origin:50% 90%}
+.tools{display:flex;flex-wrap:wrap;gap:8px}
+.btn{min-height:44px;padding:0 16px;border-radius:10px;background:#ffffff14;border:1px solid var(--line);font-weight:600}
+a.btn{display:inline-flex;align-items:center;color:var(--ink);text-decoration:none}
+.btn:hover{background:#ffffff24}
+.btn.hot{background:var(--pump);border-color:transparent;color:#2a0a14;font-weight:800}
+.btn.hot:hover{background:#ff9338}
+.btn.warn{background:#b3261e;border-color:transparent}
+.btn.good{background:#2e7d32;border-color:transparent}
+.btn:disabled{opacity:.4;cursor:default}
+.seg{display:flex;border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.seg button{min-height:44px;padding:0 14px;font-weight:600;background:#ffffff0d}
+.seg button[aria-pressed=true]{background:var(--gold);color:#2a0a14;font-weight:800}
+main{padding:0 max(3vw,14px)}
+.status{text-align:center;font:400 clamp(20px,2.6vw,32px)/1.2 "Alfa Slab One",Georgia,serif;margin:4px 0 14px;text-wrap:balance}
+.status b{color:var(--gold);font-weight:400}
+.chain{display:grid;gap:clamp(6px,1vh,12px);justify-items:center;max-width:1000px;margin:0 auto}
+.link{position:relative;display:flex;gap:clamp(3px,.5vw,7px);align-items:center;padding:6px 10px;border-radius:14px;border:2px solid transparent}
+.link.open{border-color:#ffffff30;border-style:dashed}
+.link.open:not(:disabled):hover{background:#ffffff0d}
+.link.sel{border:2px solid var(--pump);background:#ef7d1a22;box-shadow:0 0 24px #ef7d1a55}
+.link:disabled{cursor:default}
+.lt{width:min(60px,calc((100vw - 110px)/12));aspect-ratio:1;display:grid;place-items:center;border-radius:8px;background:linear-gradient(#6a1830,var(--tile));box-shadow:inset 0 2px 0 #ffffff1a,inset 0 -4px 0 #0005;font:400 min(38px,calc((100vw - 110px)/19))/1 "Alfa Slab One",Georgia,serif;color:var(--gold);text-shadow:0 2px 0 #0007}
+.lt.on{background:linear-gradient(#80203b,#6a1830)}
+.solved .lt{background:var(--gold);color:#2a0a14;text-shadow:none}
+.pts{position:absolute;left:100%;margin-left:8px;font-weight:800;color:var(--mute);font-size:clamp(14px,1.6vw,20px);white-space:nowrap}
+.sel .pts{color:var(--pump)}
+.acts{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin:18px auto 0;max-width:900px;min-height:52px}
+.big{min-height:52px;padding:0 24px;font-size:18px}
+.peek{text-align:center;margin:10px auto 0;color:var(--gold);font-weight:800;background:#0007;border:1px dashed var(--gold);border-radius:10px;padding:6px 14px;width:fit-content;font-size:clamp(15px,2vw,20px)}
+.peek:empty{display:none}
+.teams{display:flex;flex-wrap:wrap;gap:12px;justify-content:center;max-width:1400px;margin:18px auto 0;padding-bottom:20px}
+.team{background:#ffffff0f;border:2px solid var(--line);border-radius:14px;padding:12px 14px;width:min(240px,100%);display:grid;gap:6px;text-align:center}
+.team.up{border-color:var(--pump);background:#ef7d1a1f}
+.team input{font:600 16px Archivo,sans-serif;text-align:center;background:transparent;border:0;border-bottom:1px dashed #ffffff40;color:var(--ink);padding:4px;width:100%}
+.score{font:400 clamp(26px,3vw,36px)/1.1 "Alfa Slab One",Georgia,serif;color:var(--gold);white-space:nowrap}
+.uptag{font-weight:800;color:var(--pump);font-size:13px;text-transform:uppercase;letter-spacing:.06em;min-height:20px}
+.adj{display:flex;gap:6px;justify-content:center;flex-wrap:wrap}
+.adj button{min-width:44px;min-height:36px;border-radius:8px;background:#ffffff14;font-size:13px;font-weight:600;padding:0 8px}
+.adj .x{color:var(--mute)}
+.addteam{border:2px dashed #ffffff30;border-radius:14px;width:min(160px,100%);min-height:120px;color:var(--mute);font-weight:600}
+.note{text-align:center;color:var(--mute);font-size:13px;margin:0 auto;padding-bottom:24px;max-width:760px}
+.host{position:fixed;left:clamp(6px,2vw,28px);bottom:clamp(6px,2vw,24px);width:clamp(84px,10vw,140px);pointer-events:none;z-index:5}
+.host svg{width:100%;aspect-ratio:1;display:block;transform-origin:50% 95%}
+.host.talk svg{animation:talk .28s ease-in-out infinite}
+.bubble{position:absolute;bottom:98%;left:4px;background:#fff4e6;color:#2a0a14;font-weight:800;font-size:clamp(13px,1.4vw,16px);line-height:1.25;padding:8px 12px;border-radius:14px 14px 14px 4px;width:max-content;max-width:min(260px,70vw);opacity:0;transition:opacity .2s}
+.bubble.show{opacity:1}
+.tvbar{max-width:1000px;margin:0 auto 12px;padding:10px 14px;border-radius:12px;background:#ffffff12;border:1px solid var(--line);display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;justify-content:center;text-align:center}
+.tvbar[hidden]{display:none}
+.tvbar b.code{font:400 28px/1 "Alfa Slab One",Georgia,serif;color:var(--gold);letter-spacing:.12em}
+.tvbar input{font:600 18px Archivo,sans-serif;width:6em;text-align:center;text-transform:uppercase;padding:8px;border-radius:8px;border:1px solid #ffffff40;background:#ffffff10;color:var(--ink)}
+.tvbar .warnTxt{color:#ff8a7a;font-weight:700}
+.tvmode .tools>*:not(#fsBtn),.tvmode .seg,.tvmode .note,.tvmode .adj,.tvmode .addteam,.tvmode .acts{display:none}
+.tvmode .teams,.tvmode .chain{pointer-events:none}
+.tvmode .lt{width:min(76px,calc((100vw - 140px)/12),8.6vh);font-size:min(48px,calc((100vw - 140px)/19),5.4vh)}
+.tvmode .status{margin:0 0 8px}.tvmode header{padding-top:8px;padding-bottom:4px}.tvmode .tvbar{padding:4px 14px;margin-bottom:6px}
+.tvtap{position:fixed;inset:0;z-index:20;background:#2a0a14ee;display:grid;place-items:center;font:400 clamp(28px,5vw,56px)/1.2 "Alfa Slab One",Georgia,serif;color:var(--gold);text-align:center;padding:20px}
+@keyframes bob{0%,100%{transform:rotate(-4deg)}50%{transform:rotate(4deg) translateY(-3px)}}
+@keyframes talk{0%,100%{transform:rotate(-3deg) scaleY(1)}50%{transform:rotate(3deg) scaleY(.94)}}
+@keyframes pop{0%{transform:scale(1)}40%{transform:scale(1.18)}100%{transform:scale(1)}}
+.solved.just .lt{animation:pop .5s ease-out both}
+@media(max-width:600px){.lt{width:calc((100vw - 60px)/11);font-size:calc((100vw - 60px)/17)}.link{padding:4px 6px}.team{width:calc(50% - 6px)}.addteam{width:calc(50% - 6px)}.pts{position:static;margin-left:4px}}
+@media(prefers-reduced-motion:reduce){.brand svg,.host.talk svg,.solved.just .lt{animation:none}}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <radialGradient id="tkBody" cx="40%" cy="35%" r="70%"><stop offset="0" stop-color="#a5643a"/><stop offset="1" stop-color="#5a3018"/></radialGradient>
+    <symbol id="tk" viewBox="0 0 100 100">
+      <g transform="translate(50 58)">
+        <ellipse rx="9" ry="34" fill="#c0392b" transform="rotate(-75) translate(0 -20)"/>
+        <ellipse rx="9" ry="36" fill="#ef7d1a" transform="rotate(-50) translate(0 -22)"/>
+        <ellipse rx="9" ry="38" fill="#f6b93b" transform="rotate(-25) translate(0 -24)"/>
+        <ellipse rx="9" ry="39" fill="#8e4a22" transform="rotate(0) translate(0 -25)"/>
+        <ellipse rx="9" ry="38" fill="#f6b93b" transform="rotate(25) translate(0 -24)"/>
+        <ellipse rx="9" ry="36" fill="#ef7d1a" transform="rotate(50) translate(0 -22)"/>
+        <ellipse rx="9" ry="34" fill="#c0392b" transform="rotate(75) translate(0 -20)"/>
+        <path d="M-6 26v9m-4 0h8M6 26v9m-4 0h8" stroke="#f39c12" stroke-width="3" stroke-linecap="round" fill="none"/>
+        <ellipse cy="10" rx="21" ry="20" fill="url(#tkBody)"/>
+        <ellipse cy="16" rx="12" ry="9" fill="#ffffff14"/>
+        <circle cy="-14" r="11" fill="#d9a77a"/>
+        <circle cx="-4" cy="-17" r="2.4" fill="#1b0b06"/><circle cx="4" cy="-17" r="2.4" fill="#1b0b06"/>
+        <circle cx="-3.3" cy="-17.8" r=".8" fill="#fff"/><circle cx="4.7" cy="-17.8" r=".8" fill="#fff"/>
+        <path d="M-4 -12h8l-4 6z" fill="#f39c12"/>
+        <path d="M2 -9c4 2 4 8 1 11c-2-3-3-7-1-11z" fill="#d62828"/>
+      </g>
+    </symbol>
+    <symbol id="tkc" viewBox="0 0 100 100">
+      <use href="#tk" x="0" y="6" width="100" height="100"/>
+      <path d="M31 64q19-6 38 0l4 31H27z" fill="#d4a017"/>
+      <path d="M50 63l-6 12 6 20 6-20z" fill="#fff"/><path d="M50 66l-2 4 2 14 2-14z" fill="#8b1a1a"/>
+      <path d="M44 63l-5 14 8-3zM56 63l5 14-8-3z" fill="#b8860b"/>
+      <path d="M37 45q0-16 13-16t13 16" fill="none" stroke="#222" stroke-width="2.6"/>
+      <rect x="34" y="42" width="6" height="9" rx="2.5" fill="#222"/><rect x="60" y="42" width="6" height="9" rx="2.5" fill="#222"/>
+      <path d="M37 50q2 9 9 8" fill="none" stroke="#222" stroke-width="1.8"/><circle cx="46.5" cy="58" r="2" fill="#444"/>
+    </symbol>
+  </defs>
+</svg>
+<header>
+  <div class="brand"><svg aria-hidden="true"><use href="#tk"/></svg><h1>Chain <span>Reaction</span></h1>
+    <div class="seg" role="group" aria-label="Choose a word set"><button id="bKids" aria-pressed="true">Kids chains</button><button id="bAdults" aria-pressed="false">Grown-up chains</button></div></div>
+  <div class="tools">
+    <a class="btn" href="./">⏱ Fishbowl</a>
+    <a class="btn" href="jeopardy.html">🦃 Jeopardy</a>
+    <button class="btn" id="sndBtn" aria-pressed="true">Sound: on</button>
+    <button class="btn" id="voiceBtn" aria-pressed="true">Host voice: on</button>
+    <button class="btn hot" id="nextBtn">Next chain</button>
+    <button class="btn" id="tvBtn">📺 TV</button>
+    <button class="btn" id="fsBtn">Full screen</button>
+    <button class="btn" id="resetBtn">New game</button>
+  </div>
+</header>
+<main>
+  <div class="tvbar" id="tvBar" hidden></div>
+  <div class="status" id="status" aria-live="polite"></div>
+  <div class="chain" id="chain"></div>
+  <div class="peek" id="peek"></div>
+  <div class="acts" id="acts"></div>
+  <div class="teams" id="teams"></div>
+  <p class="note">Each word goes with the one above it and the one below it (FIRE → TRUCK → STOP → SIGN). The team that's up picks a hidden word next to a solved one and guesses it. Get it right and you keep going. Get it wrong and you get another letter, and the next team can steal it. Each word is worth 10 points for every letter still hidden, and the team that finishes the chain gets a 50-point bonus.</p>
+</main>
+<div class="host" id="host" aria-hidden="true"><div class="bubble" id="bubble"></div><svg><use href="#tkc"/></svg></div>
+
+<script>
+{
+/* Every word pairs with the next: FIRE TRUCK, TRUCK STOP, STOP SIGN… */
+const KIDS=`FIRE TRUCK STOP SIGN LANGUAGE ARTS
+TURKEY LEG ROOM SERVICE DOG HOUSE PARTY
+BIRTHDAY CAKE POP CORN DOG BONE
+SNOW BALL GAME NIGHT LIGHT HOUSE
+APPLE JUICE BOX CAR WASH CLOTH
+HOME WORK OUT SIDE WALK WAY
+SUN FLOWER POT ROAST BEEF JERKY
+ICE CREAM CHEESE CAKE POP STAR
+BED TIME OUT DOOR BELL PEPPER
+PEANUT BUTTER FLY TRAP DOOR KNOB
+FISH TANK TOP HAT TRICK
+HOT CHOCOLATE BAR CODE NAME TAG
+GOLD FISH FOOD TRUCK DRIVER
+SCHOOL BUS STOP WATCH DOG FOOD
+TOOTH BRUSH FIRE PLACE MAT
+BASE BALL GAME DAY DREAM CATCHER
+CANDY CORN FIELD GOAL POST OFFICE
+PUMPKIN PATCH WORK BOOK WORM
+SEA HORSE SHOE STRING BEAN BAG
+CHICKEN FINGER PAINT BALL PIT STOP
+PAPER CLIP BOARD GAME SHOW TIME
+BACK YARD STICK FIGURE SKATING RINK
+WATER BALLOON ANIMAL CRACKER JACK
+HEAD BAND WAGON WHEEL CHAIR LIFT
+GRAVY BOAT RACE CAR POOL TABLE
+FAMILY TREE HOUSE KEY CHAIN REACTION
+PUPPY LOVE BUG SPRAY PAINT BRUSH
+LADY BUG SPRAY PAINT BALL PARK
+COW BOY SCOUT CAMP FIRE FLY
+SKATE BOARD GAME ROOM MATE
+PILLOW FIGHT NIGHT OWL
+CUP CAKE WALK WAY
+BUBBLE GUM BALL GAME DAY
+MAIL BOX TOP SPIN
+JUMP ROPE SWING SET
+RAIN DROP BOX TURTLE NECK
+NOSE DIVE BOMB SHELL FISH
+BOOK SHELF SPACE SHIP SHAPE`;
+const ADULTS=`BLACK FRIDAY NIGHT CAP STONE WALL STREET
+COLD FRONT PORCH LIGHT YEAR BOOK
+BOARD ROOM TEMPERATURE CHECK MATE
+SOUTH POLE POSITION PAPER TRAIL MIX
+CREDIT CARD SHARK TANK TOP SECRET AGENT
+HIGH SCHOOL BOARD WALK OFF SEASON TICKET
+HEAD COACH CLASS ACTION FIGURE EIGHT BALL
+BREAD BASKET CASE STUDY HALL PASS
+GREEN BEAN COUNTER TOP DOLLAR STORE
+TABLE SALT MINE FIELD DAY TRADER
+BULL PEN NAME BRAND NEW YEAR
+CORNER OFFICE SPACE BAR TAB
+PRIME TIME ZONE DEFENSE ATTORNEY GENERAL
+DEAD LINE DANCE FLOOR PLAN
+QUARTER BACK FIRE DRILL SERGEANT
+SWEET POTATO CHIP SHOT CLOCK WORK
+TURKEY BACON BIT PART TIME
+CASH COW BELL BOTTOM LINE ITEM
+LIVE STOCK MARKET PLACE KICKER
+SPRING TRAINING CAMP FIRE WALL FLOWER
+HOME PLATE GLASS CEILING FAN MAIL
+CHURCH BELL HOP SCOTCH TAPE MEASURE
+ROAD TRIP WIRE TAP DANCE PARTNER
+COFFEE TABLE TENNIS ELBOW GREASE
+FAST BALL PARK FIGURE HEAD LINE
+EGG SHELL SHOCK WAVE POOL HALL
+WILD CARD TABLE TOP SHELF LIFE
+SHORT STOP GAP YEAR END ZONE
+BOX SCORE CARD GAME PLAN
+FOOT NOTE BOOK CLUB HOUSE MONEY
+LEAD OFF SHORE LINE BACKER
+PASS WORD PLAY BOOK CASE LOAD
+DOUBLE PLAY DATE NIGHT SHIFT WORK
+POWER PLAY GROUND BALL ROOM
+SNOW STORM DRAIN PIPE DREAM TEAM
+HAND SHAKE DOWN TOWN HALL MARK
+GROUND HOG WASH CLOTH
+PAY DAY LIGHT HOUSE WARMING
+FINE PRINT SHOP TALK SHOW CASE`;
+const LISTS={kids:KIDS.split("\n").map(s=>s.split(" ")),adults:ADULTS.split("\n").map(s=>s.split(" "))};
+const BONUS=50,KEY="tg-chain-v1";
+const $=id=>document.getElementById(id);
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const pick=a=>a[Math.floor(Math.random()*a.length)];
+
+let S,TVL=null,TVC=null;
+const chain=()=>LISTS[S.mode][S.ci];
+const solved=i=>S.shown[i]>=chain()[i].length;
+const canPick=i=>!solved(i)&&((i>0&&solved(i-1))||(i<chain().length-1&&solved(i+1)));
+const val=i=>10*(chain()[i].length-S.shown[i]);
+const done=()=>chain().every((_,i)=>solved(i));
+const upTeam=()=>S.teams[S.turn];
+function startChain(){
+  const L=LISTS[S.mode],p=S.played[S.mode];
+  let pool=L.map((_,i)=>i).filter(i=>!p.includes(i));
+  if(!pool.length){p.length=0;pool=L.map((_,i)=>i)}
+  S.ci=pick(pool);p.push(S.ci);
+  const w=chain();S.shown=w.map((x,i)=>i===0||i===w.length-1?x.length:1);S.sel=-1;S.just=-1;
+}
+function fresh(){const s={mode:"kids",teams:[{n:"Team 1",s:0},{n:"Team 2",s:0}],turn:0,played:{kids:[],adults:[]},ev:{n:0}};return s}
+try{S=JSON.parse(localStorage.getItem(KEY))}catch(e){}
+if(!S||!S.teams||!LISTS[S.mode]||!LISTS[S.mode][S.ci]){S=fresh();startChain()}
+const save=()=>{if(TVC)return;try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}};
+
+/* ---------- drawing ---------- */
+function renderChain(){
+  $("chain").innerHTML=chain().map((word,i)=>{
+    const sv=solved(i),open=canPick(i);
+    const boxes=[...word].map((ch,k)=>`<span class="lt ${k<S.shown[i]?"on":""}">${k<S.shown[i]?esc(ch):""}</span>`).join("");
+    const label=sv?word:`Word ${i+1}: starts with ${word.slice(0,S.shown[i])}, ${word.length} letters, worth ${val(i)}`+(open?"":", not open yet");
+    return `<button class="link${sv?" solved":""}${open?" open":""}${S.sel===i?" sel":""}${S.just===i?" just":""}" data-i="${i}" ${open&&!TVC?"":"disabled"} aria-label="${esc(label)}">${boxes}<span class="pts">${sv?"":val(i)}</span></button>`;
+  }).join("");
+}
+function renderStatus(){
+  const t=esc(upTeam().n);
+  $("status").innerHTML=done()?`Chain complete! 🦃`:S.sel>=0?`<b>${t}</b> is guessing, for <b>${val(S.sel)}</b>`:`<b>${t}</b>, pick a word`;
+}
+function renderActs(){
+  let h="";
+  if(done())h=`<button class="btn big hot" data-a="next">Next chain</button>`;
+  else if(S.sel<0)h=`<span class="note" style="padding:12px 0">Tap a dashed word above, one that touches a solved word.</span>`;
+  else h=`<button class="btn big good" data-a="ok">✓ Correct</button><button class="btn big warn" data-a="no">✗ Wrong</button><button class="btn big" data-a="letter">Give a letter</button><button class="btn big" data-a="cancel">Cancel</button>`;
+  $("acts").innerHTML=h;
+}
+function renderTeams(){
+  $("teams").innerHTML=S.teams.map((t,i)=>`<div class="team${i===S.turn?" up":""}">
+    <div class="uptag">${i===S.turn?"▶ Up now":""}</div>
+    <input value="${esc(t.n)}" data-i="${i}" aria-label="Team name">
+    <div class="score">${t.s}</div>
+    <div class="adj">${i!==S.turn?`<button data-up="${i}">Make up</button>`:""}<button data-a="-10" data-i="${i}" aria-label="Subtract 10">−10</button><button data-a="10" data-i="${i}" aria-label="Add 10">+10</button>${S.teams.length>1?`<button class="x" data-del="${i}" aria-label="Remove team">✕</button>`:""}</div>
+  </div>`).join("")+(S.teams.length<8?`<button class="addteam" id="addTeam">+ Add team</button>`:"");
+}
+function paintMode(){$("bKids").setAttribute("aria-pressed",S.mode==="kids");$("bAdults").setAttribute("aria-pressed",S.mode==="adults")}
+function render(){renderChain();renderStatus();renderActs();renderTeams();paintMode();save()}
+
+/* ---------- game moves (host only) ---------- */
+const RIGHT=["Boom! It's ","There it is! ","Touchdown! ","Whap! You got it! "];
+const WRONG=["Gobble! Nope!","Fumble!","Ooh, flag on the play!","Not it!"];
+function fire(k,t){S.ev={n:S.ev.n+1,k,t};if(!TVL)play(S.ev)}
+function nextTurn(){S.turn=(S.turn+1)%S.teams.length}
+function finishIfDone(msg,k){if(done())fire("done",msg+" That's the whole chain!");else fire(k,msg)}
+function correct(){
+  const i=S.sel,t=upTeam(),v=val(i),w=chain()[i];
+  t.s+=v;S.shown[i]=w.length;S.sel=-1;S.just=i;
+  let msg=pick(RIGHT)+w+"! "+v+" points for "+t.n+".";
+  if(done()){t.s+=BONUS;fire("done",msg+" And that finishes the chain! "+BONUS+" bonus points!")}else fire("ok",msg);
+  render();
+}
+function wrong(){
+  const i=S.sel;S.shown[i]++;nextTurn();S.just=-1;
+  if(solved(i)){S.sel=-1;finishIfDone("It was "+chain()[i]+". Nobody scores that one. "+upTeam().n+", you're up.","no")}
+  else fire("no",pick(WRONG)+" Here's another letter. "+upTeam().n+", it's yours to steal!");
+  render();
+}
+function giveLetter(){
+  const i=S.sel;S.shown[i]++;S.just=-1;
+  if(solved(i)){S.sel=-1;nextTurn();finishIfDone("That was the last letter: "+chain()[i]+". No points. "+upTeam().n+", you're up.","no")}
+  render();
+}
+function nextChain(){
+  startChain();
+  const w=chain();
+  fire("new","New chain! It starts with "+w[0]+" and ends with "+w[w.length-1]+". "+upTeam().n+", you're up!");
+  render();
+}
+$("chain").addEventListener("click",e=>{const b=e.target.closest(".link");if(!b||b.disabled)return;S.sel=+b.dataset.i;S.just=-1;render()});
+$("acts").addEventListener("click",e=>{const a=e.target.closest("button")?.dataset.a;
+  if(a==="ok")correct();else if(a==="no")wrong();else if(a==="letter")giveLetter();else if(a==="cancel"){S.sel=-1;render()}else if(a==="next")nextChain()});
+$("nextBtn").onclick=nextChain;
+$("teams").addEventListener("input",e=>{if(e.target.dataset.i!=null){S.teams[e.target.dataset.i].n=e.target.value;save()}});
+$("teams").addEventListener("click",e=>{
+  const b=e.target.closest("button");if(!b)return;
+  if(b.id==="addTeam")S.teams.push({n:"Team "+(S.teams.length+1),s:0});
+  else if(b.dataset.del!=null){S.teams.splice(+b.dataset.del,1);if(S.turn>=S.teams.length)S.turn=0}
+  else if(b.dataset.up!=null)S.turn=+b.dataset.up;
+  else if(b.dataset.a)S.teams[b.dataset.i].s+=+b.dataset.a;
+  render();
+});
+const setMode=m=>{if(m===S.mode)return;S.mode=m;nextChain()};
+$("bKids").onclick=()=>setMode("kids");$("bAdults").onclick=()=>setMode("adults");
+let armed=null;
+$("resetBtn").onclick=()=>{
+  const b=$("resetBtn");
+  if(!armed){b.textContent="Click again to reset";b.classList.add("warn");armed=setTimeout(()=>{armed=null;b.textContent="New game";b.classList.remove("warn")},3000);return}
+  clearTimeout(armed);armed=null;b.textContent="New game";b.classList.remove("warn");
+  S.teams.forEach(t=>t.s=0);S.turn=0;nextChain();
+};
+$("fsBtn").onclick=()=>{try{document.fullscreenElement?document.exitFullscreen():document.documentElement.requestFullscreen().catch(()=>{})}catch(e){}};
+
+/* ---------- sound: ding, gobble, fanfare (synthesized) ---------- */
+let AC=null,sound=true,voiceOn=true;
+try{sound=localStorage.getItem(KEY+"-snd")!=="off";voiceOn=localStorage.getItem(KEY+"-voice")!=="off"}catch(e){}
+function ac(){if(!AC){try{AC=new (window.AudioContext||window.webkitAudioContext)()}catch(e){return null}}if(AC.state==="suspended")AC.resume();return AC}
+function tone(type,t,f0,f1,len,vol){const o=AC.createOscillator(),g=AC.createGain();o.type=type;o.frequency.setValueAtTime(f0,t);o.frequency.exponentialRampToValueAtTime(f1,t+len);g.gain.setValueAtTime(vol,t);g.gain.exponentialRampToValueAtTime(.001,t+len);o.connect(g).connect(AC.destination);o.start(t);o.stop(t+len+.02)}
+function gob(t,f0,f1,len,vib,vol){
+  const o=AC.createOscillator(),lfo=AC.createOscillator(),lg=AC.createGain(),bp=AC.createBiquadFilter(),g=AC.createGain();
+  o.type="sawtooth";o.frequency.setValueAtTime(f0,t);o.frequency.exponentialRampToValueAtTime(f1,t+len);
+  lfo.type="square";lfo.frequency.value=vib;lg.gain.value=f0*.3;lfo.connect(lg).connect(o.frequency);
+  bp.type="bandpass";bp.frequency.value=1000;bp.Q.value=1.3;
+  g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(vol,t+.02);g.gain.exponentialRampToValueAtTime(.001,t+len);
+  o.connect(bp).connect(g).connect(AC.destination);o.start(t);lfo.start(t);o.stop(t+len+.02);lfo.stop(t+len+.02);
+}
+function sfx(k){
+  if(!sound||!ac())return;const t=AC.currentTime+.02;
+  if(k==="ok"){tone("sine",t,880,880,.25,.3);tone("sine",t+.12,1320,1320,.45,.3)}
+  else if(k==="no"){for(let j=0;j<4;j++)gob(t+j*.12,420+j*70,300+j*50,.14,34,.4);gob(t+.5,260,140,.6,16,.5)}
+  else if(k==="done"){[523,659,784,1047].forEach((f,j)=>tone("triangle",t+j*.13,f,f,.5,.3));for(let j=0;j<5;j++)gob(t+.8+j*.11,450+j*80,320+j*50,.13,34,.35)}
+  else if(k==="new"){tone("sine",t,660,990,.3,.25)}
+}
+
+/* ---------- the host: Coach Turkey reads out what happened ---------- */
+const SS=window.speechSynthesis;let sayTok=0;
+function pickVoice(){
+  let best=null,bs=-1;
+  for(const v of SS?SS.getVoices():[]){
+    if(!/^en/i.test(v.lang))continue;let sc=0;
+    if(/natural|neural|online|premium|enhanced/i.test(v.name))sc+=20;
+    if(/guy|davis|andrew|christopher|eric|roger|brian|tom|aaron|fred|daniel|alex|male/i.test(v.name)&&!/female/i.test(v.name))sc+=30;
+    if(/en[-_]US/i.test(v.lang))sc+=4;
+    if(/novelty|whisper|bells|bubbles|cellos|zarvox|trinoids|organ|boing|jester|superstar|wobble/i.test(v.name))sc-=50;
+    if(sc>bs){bs=sc;best=v}
+  }
+  return best;
+}
+function say(text){
+  sayTok++;const tok=sayTok;$("bubble").textContent=text;$("bubble").classList.add("show");
+  const off=()=>{if(tok===sayTok){$("host").classList.remove("talk");setTimeout(()=>{if(tok===sayTok)$("bubble").classList.remove("show")},2500)}};
+  if(!voiceOn||!SS){off();return}
+  SS.cancel();const u=new SpeechSynthesisUtterance(text),v=pickVoice();
+  if(v)u.voice=v;u.pitch=.85;u.rate=1.05;u.onstart=()=>{if(tok===sayTok)$("host").classList.add("talk")};u.onend=u.onerror=off;
+  SS.speak(u);
+}
+let playT=null;
+function play(ev){if(!ev||!ev.k)return;clearTimeout(playT);sfx(ev.k);playT=setTimeout(()=>say(ev.t),ev.k==="done"?1400:ev.k==="no"?900:300)}
+const paintBtns=()=>{$("sndBtn").textContent="Sound: "+(sound?"on":"off");$("sndBtn").setAttribute("aria-pressed",sound);
+  $("voiceBtn").textContent=SS?"Host voice: "+(voiceOn?"on":"off"):"Host voice: not supported";$("voiceBtn").setAttribute("aria-pressed",voiceOn);$("voiceBtn").disabled=!SS};
+$("sndBtn").onclick=()=>{sound=!sound;try{localStorage.setItem(KEY+"-snd",sound?"on":"off")}catch(e){}paintBtns()};
+$("voiceBtn").onclick=()=>{voiceOn=!voiceOn;try{localStorage.setItem(KEY+"-voice",voiceOn?"on":"off")}catch(e){}if(!voiceOn&&SS)SS.cancel();paintBtns()};
+
+/* ---------- TV link: the phone runs the game, the TV shows the chain ----------
+   Same Big Dawg server functions as jeopardy.html (tvHost/tvPush/tvWatch, codes live 6 hours). */
+const SRV="https://script.google.com/macros/s/AKfycbxPfcr0_vWObUwDG5-ZjuVAmiCNNFqTXo38-YpkEPfOcsEq6iehAkjhtPNVf0Az_rh_/exec";
+const api=(fn,...args)=>fetch(SRV,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({fn,args}),redirect:"follow"}).then(r=>r.json()).then(j=>{if(!j||!j.ok)throw new Error((j&&j.error)||"offline");return j.result});
+try{TVL=JSON.parse(localStorage.getItem(KEY+"-tv"))}catch(e){}
+const bar=$("tvBar");
+function paintBar(msg){
+  bar.hidden=false;
+  bar.innerHTML=TVL?`<span>📺 TV code</span><b class="code">${esc(TVL.code)}</b><span>On the TV, open this page, tap 📺 TV and enter the code. Your phone shows the answers, and the TV plays the sound.</span>${msg?`<span class="warnTxt">${esc(msg)}</span>`:""}<button class="btn" id="tvStop">Stop TV</button>`
+    :`<button class="btn hot" id="tvHostGo">Host from this phone</button><span>or this screen is the TV:</span><input id="tvIn" maxlength="4" placeholder="CODE" aria-label="TV code"><button class="btn" id="tvWatchGo">Watch</button>${msg?`<span class="warnTxt">${esc(msg)}</span>`:""}<button class="btn" id="tvX">✕</button>`;
+}
+$("tvBtn").onclick=()=>{if(!bar.hidden&&!TVL){bar.hidden=true;return}paintBar()};
+bar.addEventListener("click",e=>{
+  const id=e.target.id;
+  if(id==="tvX")bar.hidden=true;
+  if(id==="tvStop"){TVL=null;try{localStorage.removeItem(KEY+"-tv")}catch(x){}bar.hidden=true}
+  if(id==="tvHostGo"){e.target.disabled=true;e.target.textContent="Getting a code…";
+    api("tvHost").then(r=>{TVL=r;try{localStorage.setItem(KEY+"-tv",JSON.stringify(r))}catch(x){}last="";paintBar()},err=>paintBar("Couldn't get a code: "+err.message))}
+  if(id==="tvWatchGo"){const c=$("tvIn").value.toUpperCase().replace(/[^A-Z]/g,"");if(c.length===4)location.search="?tv="+c}
+});
+bar.addEventListener("keydown",e=>{if(e.key==="Enter"&&e.target.id==="tvIn")$("tvWatchGo").click()});
+let last="",busy=false;
+function hostLoop(){
+  $("peek").textContent=TVL&&S.sel>=0?"🔒 Only you see this: "+chain()[S.sel]:"";
+  if(!TVL||busy)return;
+  const v=JSON.stringify({S,snd:sound,vo:voiceOn});if(v===last)return;
+  busy=true;api("tvPush",TVL.code,TVL.key,JSON.parse(v)).then(()=>{last=v;busy=false;if(bar.querySelector(".warnTxt"))paintBar()},err=>{busy=false;
+    if(/No game/.test(err.message)){TVL=null;try{localStorage.removeItem(KEY+"-tv")}catch(x){}paintBar("That TV code expired. Tap Host from this phone for a new one.")}
+    else paintBar("TV not reached, retrying…")});
+}
+TVC=(new URLSearchParams(location.search).get("tv")||"").toUpperCase().replace(/[^A-Z]/g,"").slice(0,4)||null;
+if(TVC){
+  TVL=null;document.body.classList.add("tvmode");
+  bar.hidden=false;bar.innerHTML=`<span>📺 Watching game</span><b class="code">${esc(TVC)}</b><span id="tvMsg"></span>`;
+  document.body.insertAdjacentHTML("beforeend",`<div class="tvtap" id="tvTap">📺 Tap to start the TV<br><small style="font-size:.45em;color:var(--ink)">(lets it play the sound and the host's voice)</small></div>`);
+  $("tvTap").onclick=()=>{ac();if(SS){const u=new SpeechSynthesisUtterance(" ");u.volume=0;SS.speak(u)}$("tvTap").remove()};
+  let waiting=false,lastEv=null,lastV="";
+  setInterval(()=>{if(waiting)return;waiting=true;api("tvWatch",TVC).then(v=>{waiting=false;$("tvMsg").textContent=v?"":"Waiting for the host…";
+    if(!v||!v.S)return;sound=v.snd;voiceOn=v.vo;
+    const j=JSON.stringify(v.S);if(j!==lastV){lastV=j;S=v.S;render()}
+    if(lastEv!==null&&S.ev.n!==lastEv)play(S.ev);lastEv=S.ev.n;
+  },err=>{waiting=false;$("tvMsg").textContent=/No game/.test(err.message)?"No game with that code. Check it on the host's phone.":"Reconnecting…"})},1000);
+}else{
+  if(TVL)paintBar();
+  setInterval(hostLoop,400);
+}
+paintBtns();render();
+}
+</script>
+</body>
+</html>
