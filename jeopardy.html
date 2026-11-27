@@ -99,6 +99,16 @@ select.sm{min-height:44px}
 @keyframes bob{0%,100%{transform:rotate(-4deg)}50%{transform:rotate(4deg) translateY(-3px)}}
 @keyframes strut{to{left:calc(100% + 70px)}}
 @keyframes shake{25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
+.peek2{color:var(--gold);font-weight:800;background:#0007;border:1px dashed var(--gold);border-radius:10px;padding:6px 14px;margin-top:10px;font-size:clamp(15px,2vw,20px)}
+.peek2:empty{display:none}
+.tvbar{max-width:1400px;margin:0 auto 12px;padding:10px 14px;border-radius:12px;background:#ffffff12;border:1px solid var(--line);display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;justify-content:center;text-align:center}
+.tvbar[hidden]{display:none}
+.tvbar b.code{font:400 28px/1 "Alfa Slab One",Georgia,serif;color:var(--gold);letter-spacing:.12em}
+.tvbar input{font:600 18px Archivo,sans-serif;width:6em;text-align:center;text-transform:uppercase;padding:8px;border-radius:8px;border:1px solid #ffffff40;background:#ffffff10;color:var(--ink)}
+.tvbar .warnTxt{color:#ff8a7a;font-weight:700}
+.tvmode .tools>*:not(#fsBtn),.tvmode .seg,.tvmode .note,.tvmode .adj,.tvmode .addteam,.tvmode #ovClose,.tvmode #sayAgain,.tvmode #ovAct,.tvmode #tPause{display:none}
+.tvmode .board,.tvmode .teams{pointer-events:none}
+.tvtap{position:fixed;inset:0;z-index:20;background:#2a0a14ee;display:grid;place-items:center;font:400 clamp(28px,5vw,56px)/1.2 "Alfa Slab One",Georgia,serif;color:var(--gold);text-align:center;padding:20px}
 @media(prefers-reduced-motion:reduce){.tile{transition:none}.brand svg,.walker,.bigturk,.timesup,.timer.caught .walker,.timer.caught .chaser,.host.talk svg{animation:none}.strut{display:none}}
 </style>
 </head>
@@ -195,11 +205,13 @@ select.sm{min-height:44px}
     <select class="sm" id="hostSel" aria-label="Choose the host"><option value="adults">Host: Preacher Turkey</option><option value="kids">Host: Southern Turkey</option><option value="coach">Host: Coach Turkey</option></select>
     <button class="btn" id="voiceBtn" aria-pressed="true">Host voice: on</button>
     <button class="btn hot" id="finalBtn">Final Jeopardy</button>
+    <button class="btn" id="tvBtn">📺 TV</button>
     <button class="btn" id="fsBtn">Full screen</button>
     <button class="btn" id="resetBtn">New game</button>
   </div>
 </header>
 <main>
+  <div class="tvbar" id="tvBar" hidden></div>
   <div class="board" id="board"></div>
   <div class="teams" id="teams"></div>
   <svg class="strut" aria-hidden="true"><use href="#tk"/></svg>
@@ -211,6 +223,7 @@ select.sm{min-height:44px}
   <button class="btn again" id="sayAgain">Read it again</button>
   <div class="host" id="host" aria-hidden="true"><div class="bubble" id="bubble"></div><svg><use id="hostUse" href="#tkp"/></svg></div>
   <div class="meta" id="ovMeta"></div>
+  <div class="peek2" id="peek"></div>
   <div class="dd" id="ovDD" hidden><svg class="bigturk" aria-hidden="true"><use href="#tk"/></svg><br>Daily Double!</div>
   <div class="timer" id="timer" hidden>
     <div class="track"><div class="fill" id="tFill"></div><svg class="walker" id="tWalk" aria-hidden="true"><use href="#tk"/></svg><svg class="chaser" id="tChase" aria-hidden="true"><use href="#pil"/></svg></div>
@@ -317,7 +330,7 @@ let S;
 const SKEY=()=>MODE==="adults"?KEY+"-adults":KEY;
 function load(){S=null;try{S=JSON.parse(localStorage.getItem(SKEY()))}catch(e){}if(!S||!S.teams)S=fresh()}
 load();
-const save=()=>{try{localStorage.setItem(SKEY(),JSON.stringify(S))}catch(e){}};
+const save=()=>{if(TVC)return;try{localStorage.setItem(SKEY(),JSON.stringify(S))}catch(e){}};
 
 function renderBoard(){
   let h=CATS.map(c=>`<div class="cat">${esc(c.n)}</div>`).join("");
@@ -371,7 +384,7 @@ const K=[1,0,0,0, 0,0,0,1, 0,0,1,0, 0,0,0,0], SN=[0,0,0,0, 1,0,0,0, 0,0,0,0, 1,0
 const BASS=[[[55,0],[55,7],[65.4,10]],[[49,0],[49,7],[41.2,14]]]; /* two-bar bass line: [Hz, step] */
 let step=0,nextT=0,sched=null;
 function startMusic(){
-  if(!sound||!ac())return;stopMusic();step=0;nextT=AC.currentTime+.05;
+  if(TVL||!sound||!ac())return;stopMusic();step=0;nextT=AC.currentTime+.05;
   if(MODE==="adults"){startGospel();return}
   sched=setInterval(()=>{
     while(nextT<AC.currentTime+.15){
@@ -427,7 +440,7 @@ function tone(type,t,pts,vol){ /* pts: [[time offset, Hz],...] */
   o.connect(g).connect(AC.destination);o.start(t);o.stop(t+end+.02);
 }
 function gobble(){ /* the most ridiculous gobble we could make */
-  if(!sound||!ac())return;
+  if(TVL||!sound||!ac())return;
   let t=AC.currentTime+.02;
   for(let k=0;k<7;k++){gob(t,420+k*90,300+k*60,.14,34,.45);t+=.12}
   tone("sine",t,[[0,350],[.45,2000]],.35);t+=.45;
@@ -453,7 +466,7 @@ function paintT(){
 function startTimer(sec){
   stopTimer();const len=sec??+$("tLen").value;
   if(!len){$("timer").hidden=true;return}
-  T.len=len;T.left=len;T.running=true;$("timer").hidden=false;$("timer").classList.remove("caught");$("tPause").textContent="Pause";
+  TN++;T.len=len;T.left=len;T.running=true;$("timer").hidden=false;$("timer").classList.remove("caught");$("tPause").textContent="Pause";
   T.end=performance.now()+len*1000;paintT();startMusic();
   T.id=setInterval(tick,100);
 }
@@ -539,6 +552,7 @@ function hush(){sayTok++;if(SS)SS.cancel();$("host").classList.remove("talk");$(
 function say(text,bubble,done){
   hush();const tok=sayTok;lastSay=[text,bubble];
   $("bubble").textContent=bubble||"";
+  if(TVL){SAYN++;$("bubble").classList.add("show");if(done){const w=voiceOn&&SS?Math.max(1500,text.length*70):0;setTimeout(()=>{if(tok===sayTok)done()},w)}return} /* the TV speaks; the phone waits about as long */
   const fin=()=>{if(tok!==sayTok)return;$("host").classList.remove("talk");if(bubble)$("bubble").classList.add("show");done&&done()};
   if(!voiceOn||!SS){if(bubble)$("bubble").classList.add("show");done&&done();return}
   const H=HH(),v=pickVoice();
@@ -595,7 +609,7 @@ $("board").addEventListener("click",e=>{
   S.used.push(c+"-"+r);save();
   const isDD=S.dd[0]===c&&S.dd[1]===r;hideTimer();
   $("ovMeta").textContent=CATS[c].n+" · $"+val;
-  $("ovDD").hidden=!isDD;$("ovAns").textContent="";$("ovPre").innerHTML="";
+  $("ovDD").hidden=!isDD;$("ovAns").textContent="";delete $("ovAns").dataset.a;$("ovPre").innerHTML="";
   if(isDD){
     $("ovClue").textContent="";
     const max=i=>Math.max(S.teams[i].s,500);
@@ -633,7 +647,7 @@ $("board").addEventListener("click",e=>{
 /* final jeopardy */
 $("finalBtn").onclick=()=>{
   $("ovMeta").textContent="Final Jeopardy · "+FINAL.c;
-  $("ovDD").hidden=true;$("ovAns").textContent="";hideTimer();
+  $("ovDD").hidden=true;$("ovAns").textContent="";delete $("ovAns").dataset.a;hideTimer();
   $("ovClue").textContent="Category: "+FINAL.c;
   say(HH().finCat(FINAL.c),"The category is "+FINAL.c);
   $("ovPre").innerHTML=S.teams.map((t,i)=>`<div class="wager"><label for="fw${i}">${esc(t.n)} <small>(max ${fmt(Math.max(0,t.s))})</small></label><input id="fw${i}" type="number" inputmode="numeric" min="0" step="100" value="0"></div>`).join("");
@@ -648,7 +662,7 @@ $("finalBtn").onclick=()=>{
       judges(i=>W[i],()=>{});
       const lead=()=>{const m=Math.max(...S.teams.map(t=>t.s));return S.teams.filter(t=>t.s===m).map(t=>t.n).join(" & ")};
       $("doneBtn").textContent="Crown the winner";
-      $("doneBtn").onclick=ev=>{ev.stopPropagation();$("ovPre").innerHTML="";$("ovMeta").textContent="Game over";$("ovClue").innerHTML='<svg class="bigturk" aria-hidden="true"><use href="#tk"/></svg><br>';$("ovClue").append(lead()+" wins!");gobble();setTimeout(()=>say(HH().win(lead()),lead()+" wins!"),3400);$("ovAns").textContent=S.teams.map(t=>t.n+": "+fmt(t.s)).join("   ·   ");$("ovAct").innerHTML=`<button class="btn big hot" id="endBtn">Back to board</button>`;$("ovAct").onclick=x=>{if(x.target.id==="endBtn")closeOv()};save()};
+      $("doneBtn").onclick=ev=>{ev.stopPropagation();$("ovPre").innerHTML="";$("ovMeta").textContent="Game over";$("ovClue").innerHTML='<svg class="bigturk" aria-hidden="true"><use href="#tk"/></svg><br>';$("ovClue").append(lead()+" wins!");GOBN++;gobble();setTimeout(()=>say(HH().win(lead()),lead()+" wins!"),3400);$("ovAns").textContent=S.teams.map(t=>t.n+": "+fmt(t.s)).join("   ·   ");$("ovAct").innerHTML=`<button class="btn big hot" id="endBtn">Back to board</button>`;$("ovAct").onclick=x=>{if(x.target.id==="endBtn")closeOv()};save()};
     });
   };
   openOv();
@@ -677,6 +691,89 @@ function setMode(m){
 $("hostSel").onchange=()=>{HOSTSEL[MODE]=$("hostSel").value;try{localStorage.setItem(hostKey(),HOSTSEL[MODE])}catch(e){};hush();paintMode();say(pick(HH().intros),"Hey there!")};
 $("bKids").onclick=()=>setMode("kids");$("bAdults").onclick=()=>setMode("adults");
 const oldSnd=sndBtn.onclick;sndBtn.onclick=()=>{oldSnd();paintMode()};
+/* ---------- TV link: the host's phone runs the game, a TV shows the board ----------
+   Uses the Big Dawg server's tvHost/tvPush/tvWatch (codes live 6 hours in its cache). */
+const SRV="https://script.google.com/macros/s/AKfycbxPfcr0_vWObUwDG5-ZjuVAmiCNNFqTXo38-YpkEPfOcsEq6iehAkjhtPNVf0Az_rh_/exec";
+const api=(fn,...args)=>fetch(SRV,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({fn,args}),redirect:"follow"}).then(r=>r.json()).then(j=>{if(!j||!j.ok)throw new Error((j&&j.error)||"offline");return j.result});
+let TVL=null,TVC=null,TN=0,SAYN=0,GOBN=0;
+try{TVL=JSON.parse(localStorage.getItem(KEY+"-tv"))}catch(e){}
+const bar=$("tvBar");
+function paintBar(msg){
+  if(TVL){bar.hidden=false;bar.innerHTML=`<span>📺 TV code</span><b class="code">${esc(TVL.code)}</b><span>On the TV, open this page, tap 📺 TV and enter the code. Your phone shows the answers; the TV plays the sound.</span>${msg?`<span class="warnTxt">${esc(msg)}</span>`:""}<button class="btn" id="tvStop">Stop TV</button>`}
+  else{bar.hidden=false;bar.innerHTML=`<button class="btn hot" id="tvHostGo">Host from this phone</button><span>or this screen is the TV:</span><input id="tvIn" maxlength="4" placeholder="CODE" aria-label="TV code"><button class="btn" id="tvWatchGo">Watch</button>${msg?`<span class="warnTxt">${esc(msg)}</span>`:""}<button class="btn" id="tvX">✕</button>`}
+}
+$("tvBtn").onclick=()=>{if(!bar.hidden&&!TVL){bar.hidden=true;return}paintBar()};
+bar.addEventListener("click",e=>{
+  const id=e.target.id;
+  if(id==="tvX")bar.hidden=true;
+  if(id==="tvStop"){TVL=null;try{localStorage.removeItem(KEY+"-tv")}catch(x){}bar.hidden=true;$("peek").textContent=""}
+  if(id==="tvHostGo"){e.target.disabled=true;e.target.textContent="Getting a code…";
+    api("tvHost").then(r=>{TVL=r;try{localStorage.setItem(KEY+"-tv",JSON.stringify(r))}catch(x){}hush();stopMusic();last="";paintBar()},err=>paintBar("Couldn't get a code: "+err.message))}
+  if(id==="tvWatchGo"){const c=$("tvIn").value.toUpperCase().replace(/[^A-Z]/g,"");if(c.length===4)location.search="?tv="+c}
+});
+bar.addEventListener("keydown",e=>{if(e.key==="Enter"&&e.target.id==="tvIn")$("tvWatchGo").click()});
+
+/* host side: send what the room may see whenever it changes */
+let last="",busy=false;
+function view(){
+  const pre=$("ovPre"),open=ov.classList.contains("open");
+  const preTxt=pre.querySelector("input,select")?($("ovDD").hidden?"Make your wagers…":"Daily Double! Wager time…"):[...pre.children].filter(c=>c.id!=="tup").map(c=>c.textContent).join("   ");
+  return {m:MODE,h:hostFor(),snd:sound,vo:voiceOn,teams:S.teams,used:S.used,g:GOBN,
+    o:open?{meta:$("ovMeta").textContent,dd:!$("ovDD").hidden,clue:$("ovClue").textContent,ans:$("ovAns").textContent,pre:preTxt}:null,
+    t:{n:TN,len:T.len,left:+T.left.toFixed(1),run:T.running,vis:!$("timer").hidden,up:$("timer").classList.contains("caught")},
+    s:{n:SAYN,t:lastSay?lastSay[0]:"",b:lastSay?lastSay[1]:""}};
+}
+function hostLoop(){
+  const a=$("ovAns");
+  $("peek").textContent=TVL&&ov.classList.contains("open")&&!a.textContent&&a.dataset.a?"🔒 Only you see this: "+a.dataset.a:"";
+  if(!TVL||busy)return;
+  const v=JSON.stringify(view());if(v===last)return;
+  busy=true;api("tvPush",TVL.code,TVL.key,JSON.parse(v)).then(()=>{last=v;busy=false;if(bar.querySelector(".warnTxt"))paintBar()},err=>{busy=false;
+    if(/No game/.test(err.message)){TVL=null;try{localStorage.removeItem(KEY+"-tv")}catch(x){}paintBar("That TV code expired. Tap Host from this phone for a new one.")}
+    else paintBar("TV not reached, retrying…")});
+}
+
+/* TV side */
+TVC=(new URLSearchParams(location.search).get("tv")||"").toUpperCase().replace(/[^A-Z]/g,"").slice(0,4)||null;
+let lastTn=null,lastSayN=null,lastG=null,lastBoard="",lastPre=null;
+function tvTimer(t){
+  if(!t.vis){if(!$("timer").hidden)hideTimer();return}
+  if(t.up){if(!$("timer").classList.contains("caught")){lastTn=t.n;T.len=t.len||1;$("timer").hidden=false;T.end=performance.now();tick()}return}
+  if(t.n!==lastTn){lastTn=t.n;startTimer(t.len);T.end=performance.now()+t.left*1000;return}
+  if(t.run&&!T.running&&T.left>0){T.end=performance.now()+t.left*1000;T.running=true;T.id=setInterval(tick,100);startMusic()}
+  else if(!t.run&&T.running){clearInterval(T.id);T.running=false;stopMusic();T.left=t.left;paintT()}
+}
+function tvApply(v){
+  if(!v)return;
+  sound=v.snd;voiceOn=v.vo;
+  if(v.m!==MODE){MODE=v.m;setData()}
+  if(HOSTSEL[MODE]!==v.h){HOSTSEL[MODE]=v.h;paintMode()}
+  const b=JSON.stringify([v.m,v.teams,v.used]);
+  if(b!==lastBoard){lastBoard=b;S={teams:v.teams,used:v.used,dd:[-1,-1]};paintMode();renderBoard();renderTeams()}
+  if(v.o){
+    if(!ov.classList.contains("open")){ov.classList.add("open");lastPre=null}
+    $("ovMeta").textContent=v.o.meta;$("ovDD").hidden=!v.o.dd;
+    if($("ovClue").textContent!==v.o.clue)$("ovClue").textContent=v.o.clue;
+    $("ovAns").textContent=v.o.ans;
+    if(v.o.pre!==lastPre){lastPre=v.o.pre;const u=$("tup");$("ovPre").innerHTML=v.o.pre?`<div class="meta">${esc(v.o.pre)}</div>`:"";if(u)$("ovPre").append(u)}
+  }else if(ov.classList.contains("open")){hideTimer();hush();ov.classList.remove("open")}
+  tvTimer(v.t);
+  if(lastSayN!==null&&v.s.n!==lastSayN&&v.s.t&&v.o)say(v.s.t,v.s.b);
+  lastSayN=v.s.n;
+  if(lastG!==null&&v.g!==lastG)gobble();
+  lastG=v.g;
+}
+if(TVC){
+  TVL=null;document.body.classList.add("tvmode");
+  bar.hidden=false;bar.innerHTML=`<span>📺 Watching game</span><b class="code">${esc(TVC)}</b><span id="tvMsg"></span>`;
+  document.body.insertAdjacentHTML("beforeend",`<div class="tvtap" id="tvTap">📺 Tap to start the TV<br><small style="font-size:.45em;color:var(--ink)">(lets it play the music and the host's voice)</small></div>`);
+  $("tvTap").onclick=()=>{ac();if(SS){const u=new SpeechSynthesisUtterance(" ");u.volume=0;SS.speak(u)}$("tvTap").remove()};
+  let waiting=false;
+  setInterval(()=>{if(waiting)return;waiting=true;api("tvWatch",TVC).then(v=>{waiting=false;$("tvMsg").textContent=v?"":"Waiting for the host…";tvApply(v)},err=>{waiting=false;$("tvMsg").textContent=/No game/.test(err.message)?"No game with that code. Check it on the host's phone.":"Reconnecting…"})},1000);
+}else{
+  if(TVL)paintBar();
+  setInterval(hostLoop,400);
+}
 paintMode();
 render();
 }
