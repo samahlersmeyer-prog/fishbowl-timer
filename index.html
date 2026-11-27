@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fishbowl Timer & Score Log</title>
+<style>
+  :root { --bg:#1b1f2a; --card:#262c3b; --ink:#f4f1ea; --muted:#9aa3b8; --accent:#f2b544; --a:#4fc3f7; --b:#ff7b7b; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; background:var(--bg); color:var(--ink); min-height:100vh; }
+  .wrap { max-width: 520px; margin: 0 auto; padding: 16px; }
+  h1 { font-size: 1.5rem; margin: 8px 0 12px; }
+  .panel { background: var(--card); border-radius: 14px; padding: 16px; margin-bottom: 14px; }
+  .label { color: var(--accent); font-weight: 700; text-align:center; font-size: 1.1rem; }
+  .rule { color: var(--muted); text-align:center; font-size:.9rem; margin: 4px 0 0; }
+  .timer { font-variant-numeric: tabular-nums; font-size: 5.5rem; font-weight: 800; text-align:center; margin: 8px 0; }
+  .timer.low { color: var(--b); }
+  .timer.done { color: var(--b); animation: flash .6s infinite alternate; }
+  @keyframes flash { from { opacity:1 } to { opacity:.3 } }
+  .row { display:flex; gap:8px; flex-wrap:wrap; }
+  .row > * { flex:1 1 30%; }
+  button { font: inherit; border:none; border-radius:10px; padding:14px 10px; cursor:pointer; background:#3a4258; color:var(--ink); font-weight:700; }
+  button:hover { filter: brightness(1.1); }
+  button:disabled { opacity:.35; cursor:default; }
+  button.primary { background: var(--accent); color:#1b1f2a; }
+  button.a { background: var(--a); color:#0b1d2a; }
+  button.b { background: var(--b); color:#2a0b0b; }
+  button.small { padding:8px 10px; font-size:.85rem; }
+  .teams { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  .team { background:#1f2430; border-radius:12px; padding:12px; text-align:center; }
+  .team input { width:100%; text-align:center; font: inherit; font-weight:700; background:transparent; border:none; border-bottom:1px dashed #3a4258; color:var(--ink); padding:4px; }
+  .team.a input { color: var(--a); } .team.b input { color: var(--b); }
+  .total { font-size: 2.6rem; font-weight: 800; font-variant-numeric: tabular-nums; margin: 6px 0; }
+  .team .row { justify-content:center; }
+  .team .row button { flex: 0 0 auto; padding: 10px 14px; }
+  table { width:100%; border-collapse:collapse; font-size:.95rem; }
+  th, td { padding:8px 4px; text-align:center; border-bottom:1px solid #343b4f; font-variant-numeric: tabular-nums; }
+  th:first-child, td:first-child { text-align:left; }
+  .turn { text-align:center; font-weight:700; margin-bottom:4px; }
+  .turn.a { color: var(--a); } .turn.b { color: var(--b); }
+  .muted { color: var(--muted); font-size:.85rem; text-align:center; margin-top:8px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Fishbowl</h1>
+
+  <div class="panel">
+    <div class="label" id="roundName">Round 1: Describe</div>
+    <div class="rule" id="roundRule">Say anything except the word itself.</div>
+    <div class="row" style="margin-top:10px">
+      <button id="roundPrev" class="small" style="flex:0 0 auto">&larr; Prev</button>
+      <div style="flex:1; text-align:center; color:var(--muted); align-self:center" id="roundCount">Round 1 of 3</div>
+      <button id="roundNext" class="small" style="flex:0 0 auto">Next &rarr;</button>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="turn" id="turnLabel"></div>
+    <div class="timer" id="timer">0:45</div>
+    <div class="row">
+      <button class="primary" id="startBtn">Start</button>
+      <button id="pauseBtn" disabled>Pause</button>
+      <button id="resetBtn" disabled>Reset</button>
+    </div>
+    <div class="row" style="margin-top:8px">
+      <button id="switchBtn" style="flex:1 1 100%">Switch team</button>
+    </div>
+    <div class="muted">Timer is 45 seconds. Tap a team's +1 when they get a word.</div>
+  </div>
+
+  <div class="panel">
+    <div class="teams">
+      <div class="team a">
+        <input type="text" id="nameA" value="Team A" maxlength="20" aria-label="Team A name">
+        <div class="total" id="totA">0</div>
+        <div class="row">
+          <button class="a" id="plusA">+1</button>
+          <button class="small" id="minusA">&minus;1</button>
+        </div>
+      </div>
+      <div class="team b">
+        <input type="text" id="nameB" value="Team B" maxlength="20" aria-label="Team B name">
+        <div class="total" id="totB">0</div>
+        <div class="row">
+          <button class="b" id="plusB">+1</button>
+          <button class="small" id="minusB">&minus;1</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <table>
+      <thead><tr><th>Round</th><th id="thA">Team A</th><th id="thB">Team B</th></tr></thead>
+      <tbody id="log"></tbody>
+    </table>
+    <div class="row" style="margin-top:12px">
+      <button id="newGameBtn" style="flex:1 1 100%">New game (reset scores)</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  const TURN = 45;
+  const ROUNDS = [
+    { name: "Round 1: Describe", rule: "Say anything except the word itself." },
+    { name: "Round 2: One Word", rule: "Say exactly one word." },
+    { name: "Round 3: Charades", rule: "Act it out. No talking, no sounds." }
+  ];
+  const $ = id => document.getElementById(id);
+
+  let round = 0, team = 0, left = TURN, ticker = null;
+  let scores = ROUNDS.map(() => [0, 0]);
+
+  function fmt(s) { return Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0"); }
+
+  function renderTimer() {
+    $("timer").textContent = left > 0 ? fmt(left) : "Time!";
+    $("timer").classList.toggle("low", left <= 10 && left > 0);
+    $("timer").classList.toggle("done", left === 0);
+  }
+
+  function renderTurn() {
+    const name = ($("nameA").value.trim() || "Team A");
+    const name2 = ($("nameB").value.trim() || "Team B");
+    $("turnLabel").textContent = (team === 0 ? name : name2) + "'s turn";
+    $("turnLabel").className = "turn " + (team === 0 ? "a" : "b");
+  }
+
+  function renderRound() {
+    $("roundName").textContent = ROUNDS[round].name;
+    $("roundRule").textContent = ROUNDS[round].rule;
+    $("roundCount").textContent = "Round " + (round + 1) + " of 3";
+    $("roundPrev").disabled = round === 0;
+    $("roundNext").disabled = round === ROUNDS.length - 1;
+  }
+
+  function renderScores() {
+    const tA = scores.reduce((s, r) => s + r[0], 0);
+    const tB = scores.reduce((s, r) => s + r[1], 0);
+    $("totA").textContent = tA; $("totB").textContent = tB;
+    $("thA").textContent = $("nameA").value.trim() || "Team A";
+    $("thB").textContent = $("nameB").value.trim() || "Team B";
+    $("log").innerHTML = "";
+    ROUNDS.forEach((r, i) => {
+      const tr = document.createElement("tr");
+      tr.innerHTML = "<td>" + (i + 1) + "</td><td>" + scores[i][0] + "</td><td>" + scores[i][1] + "</td>";
+      $("log").appendChild(tr);
+    });
+  }
+
+  function setRunning(on) {
+    $("startBtn").disabled = on;
+    $("pauseBtn").disabled = !on && left === TURN;
+    $("pauseBtn").textContent = on ? "Pause" : "Resume";
+    $("resetBtn").disabled = on || left === TURN;
+  }
+
+  let audioCtx = null;
+  // Must be called from a tap (Start), so the browser allows sound later.
+  function unlockAudio() {
+    try {
+      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      if (audioCtx.state === "suspended") audioCtx.resume();
+    } catch (e) {}
+  }
+  function beep() {
+    try { if (navigator.vibrate) navigator.vibrate([400, 200, 400, 200, 400]); } catch (e) {}
+    try {
+      unlockAudio();
+      for (let i = 0; i < 4; i++) {
+        const t = audioCtx.currentTime + i * 0.5;
+        const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+        o.type = "square"; o.frequency.value = 880;
+        g.gain.setValueAtTime(1.0, t);
+        g.gain.setValueAtTime(0.0001, t + 0.35);
+        o.connect(g); g.connect(audioCtx.destination);
+        o.start(t); o.stop(t + 0.36);
+      }
+    } catch (e) {}
+  }
+
+  function start() {
+    if (left <= 0) return;
+    clearInterval(ticker);
+    ticker = setInterval(() => {
+      left--; renderTimer();
+      if (left <= 0) { clearInterval(ticker); ticker = null; beep(); setRunning(false); $("startBtn").disabled = true; $("startBtn").textContent = "Start"; $("pauseBtn").disabled = true; $("resetBtn").disabled = false; }
+    }, 1000);
+    setRunning(true);
+  }
+
+  function pause() {
+    clearInterval(ticker); ticker = null;
+    setRunning(false);
+  }
+
+  function reset() {
+    clearInterval(ticker); ticker = null;
+    left = TURN; renderTimer();
+    $("startBtn").disabled = false; $("startBtn").textContent = "Start";
+    $("pauseBtn").disabled = true; $("resetBtn").disabled = true;
+  }
+
+  function bump(t, d) {
+    scores[round][t] = Math.max(0, scores[round][t] + d);
+    renderScores();
+  }
+
+  $("startBtn").onclick = () => { unlockAudio(); if (left === 0) reset(); start(); };
+  $("pauseBtn").onclick = () => { if (ticker) pause(); else start(); };
+  $("resetBtn").onclick = reset;
+  $("switchBtn").onclick = () => { team = 1 - team; renderTurn(); };
+  $("plusA").onclick = () => bump(0, 1);
+  $("minusA").onclick = () => bump(0, -1);
+  $("plusB").onclick = () => bump(1, 1);
+  $("minusB").onclick = () => bump(1, -1);
+  $("roundPrev").onclick = () => { if (round > 0) { round--; renderRound(); } };
+  $("roundNext").onclick = () => { if (round < ROUNDS.length - 1) { round++; renderRound(); } };
+  $("nameA").addEventListener("input", () => { renderScores(); renderTurn(); });
+  $("nameB").addEventListener("input", () => { renderScores(); renderTurn(); });
+  $("newGameBtn").onclick = () => {
+    scores = ROUNDS.map(() => [0, 0]); round = 0; team = 0; reset(); renderRound(); renderTurn(); renderScores();
+  };
+
+  renderTimer(); renderRound(); renderTurn(); renderScores(); setRunning(false);
+  $("pauseBtn").disabled = true; $("resetBtn").disabled = true;
+})();
+</script>
+</body>
+</html>
