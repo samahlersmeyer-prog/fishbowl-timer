@@ -40,6 +40,11 @@
   .turn { text-align:center; font-weight:700; margin-bottom:4px; }
   .turn.a { color: var(--a); } .turn.b { color: var(--b); }
   .muted { color: var(--muted); font-size:.85rem; text-align:center; margin-top:8px; }
+  #cheer { position:fixed; top:38%; left:0; width:100%; text-align:center; font-size:2.4rem; font-weight:800; color:var(--accent); pointer-events:none; opacity:0; text-shadow:0 2px 12px #000a; z-index:60; }
+  #cheer.show { animation: pop 1.2s ease-out forwards; }
+  @keyframes pop { 0% { opacity:0; transform:scale(.6); } 20% { opacity:1; transform:scale(1.1); } 80% { opacity:1; } 100% { opacity:0; } }
+  .confetti { position:fixed; top:-14px; width:9px; height:13px; border-radius:2px; pointer-events:none; z-index:50; animation: fall 2.2s linear forwards; }
+  @keyframes fall { to { transform: translateY(110vh) rotate(720deg); } }
   .label-s { font-weight:700; margin: 0 0 6px; text-align:center; }
   ul.plist { list-style:none; padding:0; margin:8px 0 0; }
   ul.plist li { display:flex; justify-content:space-between; align-items:center; padding:6px 4px; border-bottom:1px solid #343b4f; }
@@ -77,6 +82,9 @@
     </div>
     <div class="row" style="margin-top:8px">
       <button id="switchBtn" style="flex:1 1 100%">Switch team</button>
+    </div>
+    <div class="row" style="margin-bottom:8px">
+      <button id="stealBtn" disabled style="flex:1 1 100%">Steal +1 for the other team</button>
     </div>
     <div class="muted">Timer is 45 seconds. Tap a team's +1 when they get a word.</div>
   </div>
@@ -131,6 +139,7 @@
   </div>
 </div>
 
+<div id="cheer"></div>
 <script>
 (function () {
   let TURN = 45; // default turn length; changes when you adjust the time while stopped
@@ -287,7 +296,8 @@
     clearInterval(ticker);
     ticker = setInterval(() => {
       left--; renderTimer();
-      if (left <= 0) { clearInterval(ticker); ticker = null; beep(); setRunning(false); $("startBtn").disabled = true; $("startBtn").textContent = "Start"; $("pauseBtn").disabled = true; $("resetBtn").disabled = false; }
+      if (left > 0 && left <= 10) tick();
+      if (left <= 0) { clearInterval(ticker); ticker = null; beep(); setRunning(false); $("stealBtn").disabled = false; $("startBtn").disabled = true; $("startBtn").textContent = "Start"; $("pauseBtn").disabled = true; $("resetBtn").disabled = false; }
     }, 1000);
     setRunning(true);
   }
@@ -300,6 +310,7 @@
   function reset() {
     clearInterval(ticker); ticker = null;
     left = TURN; renderTimer();
+    $("stealBtn").disabled = true;
     $("startBtn").disabled = false; $("startBtn").textContent = "Start";
     $("pauseBtn").disabled = true; $("resetBtn").disabled = true;
   }
@@ -307,9 +318,55 @@
   function bump(t, d) {
     scores[round][t] = Math.max(0, scores[round][t] + d);
     renderScores();
+    if (d > 0) { confetti(); cheer(); }
+  }
+  const CHEERS = ["Nice one!", "On fire!", "Brilliant!", "Boom!", "Get it!", "Smart!", "So close!"];
+  function cheer() {
+    const c = $("cheer");
+    c.textContent = CHEERS[Math.floor(Math.random() * CHEERS.length)];
+    c.classList.remove("show"); void c.offsetWidth; c.classList.add("show");
+  }
+  function confetti() {
+    const colors = ["#f2b544", "#4fc3f7", "#ff7b7b", "#7bd389", "#ffffff"];
+    for (let i = 0; i < 40; i++) {
+      const p = document.createElement("span");
+      p.className = "confetti";
+      p.style.left = Math.random() * 100 + "vw";
+      p.style.background = colors[i % colors.length];
+      p.style.animationDelay = Math.random() * 0.3 + "s";
+      document.body.appendChild(p);
+      setTimeout(() => p.remove(), 2400);
+    }
+  }
+  function tick() {
+    try {
+      unlockAudio();
+      const t = audioCtx.currentTime;
+      const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+      o.type = "square"; o.frequency.value = 1500;
+      g.gain.setValueAtTime(0.25, t);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + 0.06);
+      o.connect(g); g.connect(audioCtx.destination);
+      o.start(t); o.stop(t + 0.07);
+    } catch (e) {}
+  }
+  function countdown(n, done) {
+    if (n === 0) { done(); return; }
+    $("timer").textContent = String(n);
+    tick();
+    setTimeout(() => countdown(n - 1, done), 800);
   }
 
-  $("startBtn").onclick = () => { unlockAudio(); if (left === 0) reset(); start(); };
+  $("startBtn").onclick = () => {
+    unlockAudio();
+    if (left === 0) reset();
+    if (left === TURN) {
+      $("startBtn").disabled = true;
+      countdown(3, () => { renderTimer(); start(); });
+    } else {
+      start();
+    }
+  };
   $("pauseBtn").onclick = () => { if (ticker) pause(); else start(); };
   $("resetBtn").onclick = reset;
 
@@ -325,7 +382,12 @@
   $("minus5").onclick = () => adjust(-5);
   $("plus5").onclick = () => adjust(5);
   $("plus15").onclick = () => adjust(15);
+  $("stealBtn").onclick = () => {
+    bump(1 - team, 1);
+    $("stealBtn").disabled = true;
+  };
   $("switchBtn").onclick = () => {
+    $("stealBtn").disabled = true;
     // The team that just went hands its turn to its next player.
     if (players[team].length) pIdx[team] = (pIdx[team] + 1) % players[team].length;
     team = 1 - team;
