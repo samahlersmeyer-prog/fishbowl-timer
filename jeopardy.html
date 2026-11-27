@@ -1,0 +1,685 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Thanksgiving Jeopardy</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Alfa+Slab+One&family=Archivo:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+/* VOICE: a game-show night at the family table — loud, warm, easy to read from the couch.
+   IDEA: the TV quiz board, re-upholstered in harvest colours: cranberry tiles, gold dollar values.
+   PICTURE: the 6×5 board itself, filling the screen; clues open full-screen like on TV.
+   COLOUR and TYPE: deep cranberry ground, plum tiles, harvest gold values, pumpkin accent; Alfa Slab One + Archivo.
+   LAYOUT: modest title bar, board, then team scoreboard band; stacks tighter on phones. */
+:root{color-scheme:dark;--bg:#2a0a14;--tile:#5c1428;--tile2:#741a33;--used:#3a0e1b;--gold:#f6b93b;--pump:#ef7d1a;--ink:#fff4e6;--mute:#d9b8a8;--line:#ffffff1f}
+*{box-sizing:border-box;min-width:0}
+body{margin:0;background:radial-gradient(1200px 600px at 50% -10%,#4a1020,var(--bg));color:var(--ink);font:16px/1.5 Archivo,system-ui,sans-serif;overflow-x:clip;min-height:100vh}
+button{font:inherit;color:inherit;cursor:pointer;border:0;background:none}
+button:focus-visible,input:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+header{display:flex;flex-wrap:wrap;align-items:center;gap:12px 20px;justify-content:space-between;padding:16px max(3vw,14px) 10px}
+h1{font:400 clamp(26px,4vw,42px)/1.05 "Alfa Slab One",Georgia,serif;margin:0;color:var(--gold);text-shadow:0 3px 0 #0006}
+h1 span{color:var(--ink)}
+.tools{display:flex;flex-wrap:wrap;gap:8px}
+.btn{min-height:44px;padding:0 16px;border-radius:10px;background:#ffffff14;border:1px solid var(--line);font-weight:600}
+a.btn{display:inline-flex;align-items:center;color:var(--ink);text-decoration:none}
+.btn:hover{background:#ffffff24}
+.btn.hot{background:var(--pump);border-color:transparent;color:#2a0a14;font-weight:800}
+.btn.hot:hover{background:#ff9338}
+.btn.warn{background:#b3261e;border-color:transparent}
+main{padding:0 max(3vw,14px)}
+.board{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:clamp(4px,.8vw,10px);max-width:1400px;margin:0 auto}
+.cat{background:var(--tile2);border-radius:10px;padding:10px 6px;min-height:clamp(56px,8vw,90px);display:grid;place-items:center;text-align:center;font-weight:800;font-size:clamp(11px,1.5vw,19px);line-height:1.15;text-transform:uppercase;letter-spacing:.02em;box-shadow:inset 0 -4px 0 #0004;overflow-wrap:anywhere}
+.tile{background:linear-gradient(#6a1830,var(--tile));border-radius:10px;min-height:clamp(52px,9vh,110px);font:400 clamp(18px,3.2vw,46px)/1 "Alfa Slab One",Georgia,serif;color:var(--gold);text-shadow:0 3px 0 #0007;box-shadow:inset 0 2px 0 #ffffff1a,inset 0 -5px 0 #0005,0 4px 10px #0004;transition:transform .12s}
+.tile:hover:not(:disabled){transform:translateY(-2px);background:linear-gradient(#80203b,#6a1830)}
+.tile:disabled{background:var(--used);color:transparent;text-shadow:none;box-shadow:inset 0 0 0 1px var(--line);cursor:default}
+.teams{display:flex;flex-wrap:wrap;gap:12px;justify-content:center;max-width:1400px;margin:18px auto 0;padding-bottom:28px}
+.team{background:#ffffff0f;border:1px solid var(--line);border-radius:14px;padding:12px 14px;width:min(240px,100%);display:grid;gap:6px;text-align:center}
+.team input{font:600 16px Archivo,sans-serif;text-align:center;background:transparent;border:0;border-bottom:1px dashed #ffffff40;color:var(--ink);padding:4px;width:100%}
+.score{font:400 clamp(26px,3vw,36px)/1.1 "Alfa Slab One",Georgia,serif;color:var(--gold);white-space:nowrap}
+.score.neg{color:#ff8a7a}
+.adj{display:flex;gap:6px;justify-content:center}
+.adj button{min-width:44px;min-height:36px;border-radius:8px;background:#ffffff14;font-size:13px;font-weight:600}
+.adj .x{color:var(--mute)}
+.addteam{border:2px dashed #ffffff30;border-radius:14px;width:min(160px,100%);min-height:120px;color:var(--mute);font-weight:600}
+.note{text-align:center;color:var(--mute);font-size:13px;margin:0;padding-bottom:20px}
+/* clue overlay */
+.ov{position:fixed;inset:0;background:radial-gradient(circle at 50% 40%,#7a1c36,#2a0a14 75%);display:none;flex-direction:column;align-items:center;justify-content:center;padding:clamp(18px,4vw,56px);z-index:10;text-align:center;overflow-y:auto}
+.ov.open{display:flex}
+.ov .meta{font-weight:800;text-transform:uppercase;letter-spacing:.04em;color:var(--mute);font-size:clamp(13px,1.6vw,18px)}
+.ov .dd{font:400 clamp(36px,7vw,84px)/1 "Alfa Slab One",Georgia,serif;color:var(--pump);margin:8px 0 18px;text-shadow:0 4px 0 #0007}
+.clue{font:400 clamp(24px,4.4vw,58px)/1.18 "Alfa Slab One",Georgia,serif;max-width:1100px;text-wrap:balance;margin:14px 0 22px;text-shadow:0 3px 0 #0006}
+.ans{font:800 clamp(20px,3vw,36px)/1.2 Archivo,sans-serif;color:var(--gold);min-height:1.2em;margin-bottom:22px;text-wrap:balance}
+.row{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;max-width:1000px}
+.judge{background:#00000033;border:1px solid var(--line);border-radius:12px;padding:8px 10px;display:flex;align-items:center;gap:8px}
+.judge b{font-weight:600;max-width:12ch;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.judge button{min-width:44px;min-height:44px;border-radius:8px;font-weight:800;font-size:18px}
+.judge .ok{background:#2e7d32}.judge .no{background:#b3261e}
+.judge.done{opacity:.45}
+.wager{display:flex;align-items:center;gap:8px;background:#00000033;border:1px solid var(--line);border-radius:12px;padding:8px 12px}
+.wager input{width:7em;font:600 16px Archivo,sans-serif;padding:8px;border-radius:8px;border:1px solid #ffffff40;background:#ffffff10;color:var(--ink)}
+select{font:600 16px Archivo,sans-serif;min-height:44px;padding:0 10px;border-radius:8px;background:#3a0e1b;color:var(--ink);border:1px solid #ffffff40}
+.close{position:absolute;top:14px;right:14px}
+.big{min-height:52px;padding:0 26px;font-size:18px}
+@media(max-width:600px){.tile{min-height:48px;border-radius:7px}.cat{border-radius:7px;padding:6px 3px}.team{width:calc(50% - 6px)}.addteam{width:calc(50% - 6px)}}
+.brand{display:flex;flex-wrap:wrap;align-items:center;gap:12px 16px}
+.seg{display:flex;border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.seg button{min-height:44px;padding:0 14px;font-weight:600;background:#ffffff0d}
+.seg button[aria-pressed=true]{background:var(--gold);color:#2a0a14;font-weight:800}
+.brand svg{width:clamp(48px,6vw,72px);height:clamp(48px,6vw,72px);flex:none;animation:bob 1.6s ease-in-out infinite;transform-origin:50% 90%}
+.tile{position:relative;overflow:hidden}
+.tile .mini{position:absolute;inset:12%;width:76%;height:76%;opacity:.4}
+.tile:hover .peek{opacity:1;transform:translateY(0)}
+.peek{position:absolute;right:4px;bottom:2px;width:30%;height:45%;opacity:0;transform:translateY(40%);transition:.2s;pointer-events:none}
+select.sm{min-height:44px}
+.timer{display:flex;align-items:center;gap:12px;width:min(900px,100%);margin:62px 0 4px}
+.track{position:relative;flex:1;height:14px;border-radius:99px;background:#00000055;box-shadow:inset 0 0 0 1px var(--line)}
+.fill{position:absolute;inset:0 auto 0 0;border-radius:99px;background:linear-gradient(90deg,var(--gold),var(--pump));width:100%}
+.walker{position:absolute;top:-44px;width:52px;height:52px;margin-left:-26px;left:100%;animation:bob .45s ease-in-out infinite;transform-origin:50% 90%}
+.again{position:absolute;top:14px;left:14px}
+.host{position:absolute;left:clamp(6px,2vw,28px);bottom:clamp(6px,2vw,24px);width:clamp(100px,12vw,160px);pointer-events:none}
+.host svg{width:100%;aspect-ratio:1;display:block;transform-origin:50% 95%}
+.host.talk svg{animation:talk .28s ease-in-out infinite}
+.bubble{position:absolute;bottom:98%;left:4px;background:#fff4e6;color:#2a0a14;font-weight:800;font-size:clamp(13px,1.4vw,16px);line-height:1.25;padding:8px 12px;border-radius:14px 14px 14px 4px;width:max-content;max-width:min(170px,60vw);opacity:0;transition:opacity .2s}
+.host.talk .bubble,.bubble.show{opacity:1}
+@keyframes talk{0%,100%{transform:rotate(-3deg) scaleY(1)}50%{transform:rotate(3deg) scaleY(.94)}}
+@media(max-width:700px){.host{width:84px}.bubble{font-size:13px}.ov{padding-bottom:110px}}
+.chaser{position:absolute;top:-56px;width:64px;height:64px;margin-left:-32px;left:100%}
+.timer.caught .walker{animation:escape 1.6s ease-out forwards}
+.timer.caught .chaser{animation:tumble 1s ease-out forwards}
+@keyframes escape{0%{transform:none}30%{transform:translateY(-90px) rotate(360deg) scale(1.4)}60%{transform:translateY(-30px) rotate(720deg) scale(1.2)}80%{transform:translateY(-60px) rotate(900deg)}100%{transform:translateY(0) rotate(1080deg)}}
+@keyframes tumble{0%{transform:none}40%{transform:rotate(-30deg) translateY(-10px)}100%{transform:rotate(-95deg) translate(-14px,22px)}}
+.tnum{font:400 clamp(26px,3vw,38px)/1 "Alfa Slab One",Georgia,serif;color:var(--gold);min-width:2.2ch;text-align:right;white-space:nowrap}
+.timer.low .tnum{color:#ff8a7a}.timer.low .fill{background:#e53935}
+.timer[hidden]{display:none}
+.tbtn{min-width:44px;min-height:44px;border-radius:10px;background:#ffffff14;border:1px solid var(--line);font-weight:600;padding:0 12px}
+.timesup{font:400 clamp(28px,5vw,60px)/1 "Alfa Slab One",Georgia,serif;color:#ff8a7a;animation:shake .5s 2}
+.bigturk{width:clamp(110px,16vw,180px);height:clamp(110px,16vw,180px);animation:bob .8s ease-in-out infinite;transform-origin:50% 90%}
+.strut{position:fixed;bottom:6px;width:56px;height:56px;left:-70px;animation:strut 18s linear infinite;opacity:.9;pointer-events:none;z-index:1}
+@keyframes bob{0%,100%{transform:rotate(-4deg)}50%{transform:rotate(4deg) translateY(-3px)}}
+@keyframes strut{to{left:calc(100% + 70px)}}
+@keyframes shake{25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
+@media(prefers-reduced-motion:reduce){.tile{transition:none}.brand svg,.walker,.bigturk,.timesup,.timer.caught .walker,.timer.caught .chaser,.host.talk svg{animation:none}.strut{display:none}}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <radialGradient id="tkBody" cx="40%" cy="35%" r="70%"><stop offset="0" stop-color="#a5643a"/><stop offset="1" stop-color="#5a3018"/></radialGradient>
+    <symbol id="tk" viewBox="0 0 100 100">
+      <g transform="translate(50 58)">
+        <g id="fan">
+          <ellipse rx="9" ry="34" fill="#c0392b" transform="rotate(-75) translate(0 -20)"/>
+          <ellipse rx="9" ry="36" fill="#ef7d1a" transform="rotate(-50) translate(0 -22)"/>
+          <ellipse rx="9" ry="38" fill="#f6b93b" transform="rotate(-25) translate(0 -24)"/>
+          <ellipse rx="9" ry="39" fill="#8e4a22" transform="rotate(0) translate(0 -25)"/>
+          <ellipse rx="9" ry="38" fill="#f6b93b" transform="rotate(25) translate(0 -24)"/>
+          <ellipse rx="9" ry="36" fill="#ef7d1a" transform="rotate(50) translate(0 -22)"/>
+          <ellipse rx="9" ry="34" fill="#c0392b" transform="rotate(75) translate(0 -20)"/>
+        </g>
+        <path d="M-6 26v9m-4 0h8M6 26v9m-4 0h8" stroke="#f39c12" stroke-width="3" stroke-linecap="round" fill="none"/>
+        <ellipse cy="10" rx="21" ry="20" fill="url(#tkBody)"/>
+        <ellipse cy="16" rx="12" ry="9" fill="#ffffff14"/>
+        <circle cy="-14" r="11" fill="#d9a77a"/>
+        <circle cx="-4" cy="-17" r="2.4" fill="#1b0b06"/><circle cx="4" cy="-17" r="2.4" fill="#1b0b06"/>
+        <circle cx="-3.3" cy="-17.8" r=".8" fill="#fff"/><circle cx="4.7" cy="-17.8" r=".8" fill="#fff"/>
+        <path d="M-4 -12h8l-4 6z" fill="#f39c12"/>
+        <path d="M2 -9c4 2 4 8 1 11c-2-3-3-7-1-11z" fill="#d62828"/>
+      </g>
+    </symbol>
+    <symbol id="pil" viewBox="0 0 100 100">
+      <g>
+        <animateTransform attributeName="transform" type="translate" values="0 0;0 -3;0 0" dur=".3s" repeatCount="indefinite"/>
+        <path d="M46 72l-8 18M56 72l7 18" stroke="#2b2b2b" stroke-width="6" stroke-linecap="round"/>
+        <path d="M32 91h11M58 91h11" stroke="#111" stroke-width="5" stroke-linecap="round"/>
+        <rect x="35" y="88.5" width="4" height="4" fill="#f6b93b"/><rect x="61" y="88.5" width="4" height="4" fill="#f6b93b"/>
+        <path d="M36 44q14-6 28 0l-2 30H38z" fill="#262626"/>
+        <path d="M34 41h32l-4 9q-12 4-24 0z" fill="#fafafa"/>
+        <circle cx="50" cy="31" r="10" fill="#f1c27d"/>
+        <path d="M40 34q-3 2-1 5" stroke="#d99b5f" stroke-width="2" fill="none"/>
+        <circle cx="45" cy="30" r="1.8" fill="#1b0b06"/>
+        <path d="M41.5 26.5l6 1.6" stroke="#1b0b06" stroke-width="1.8" stroke-linecap="round"/>
+        <path d="M42 36q3 1.5 6 0" stroke="#8a3b2a" stroke-width="1.6" fill="none" stroke-linecap="round"/>
+        <rect x="41" y="7" width="18" height="15" rx="1.5" fill="#1a1a1a"/>
+        <rect x="41" y="17" width="18" height="3.5" fill="#3a3a3a"/>
+        <rect x="47" y="16.2" width="6" height="5" fill="none" stroke="#f6b93b" stroke-width="1.6"/>
+        <ellipse cx="50" cy="22" rx="15" ry="3" fill="#1a1a1a"/>
+        <g>
+          <animateTransform attributeName="transform" type="rotate" values="35 58 46;-35 58 46;35 58 46" dur=".45s" repeatCount="indefinite"/>
+          <path d="M58 46l8-12" stroke="#262626" stroke-width="6" stroke-linecap="round"/>
+          <circle cx="66" cy="34" r="3.2" fill="#f1c27d"/>
+          <path d="M66 40V6" stroke="#8e5a2b" stroke-width="3.4" stroke-linecap="round"/>
+          <path d="M66 6q-14 0-15 9q0 6 3 7q6-6 12-6z" fill="#b8c2cc" stroke="#7d8790" stroke-width="1"/>
+        </g>
+      </g>
+    </symbol>
+    <symbol id="tkp" viewBox="0 0 100 100">
+      <use href="#tk" x="0" y="6" width="100" height="100"/>
+      <path d="M33 61q17 12 34 0l-4 9q-13 6-26 0z" fill="#fafafa" stroke="#ddd" stroke-width=".8"/>
+      <rect x="47.5" y="64" width="5" height="4" rx="1" fill="#f6b93b"/>
+      <rect x="40" y="20" width="20" height="18" rx="2" fill="#1a1a1a"/>
+      <rect x="40" y="32" width="20" height="4" fill="#3a3a3a"/>
+      <rect x="46.5" y="31" width="7" height="6" fill="none" stroke="#f6b93b" stroke-width="1.8"/>
+      <ellipse cx="50" cy="38.5" rx="17" ry="3.4" fill="#1a1a1a"/>
+    </symbol>
+    <symbol id="tkr" viewBox="0 0 100 100">
+      <use href="#tk" x="0" y="6" width="100" height="100"/>
+      <path d="M31 64q19-6 38 0l4 31H27z" fill="#1d1b33"/>
+      <path d="M43 63l-3 32h7l1-32zM57 63l3 32h-7l-1-32z" fill="#6a2c91" stroke="#f6b93b" stroke-width="1"/>
+      <path d="M42.5 80h5M45 77.5v5M52.5 80h5M55 77.5v5" stroke="#f6b93b" stroke-width="1.4"/>
+      <rect x="46.5" y="61" width="7" height="4" rx="1" fill="#fff"/>
+      <circle cx="46" cy="47" r="4" fill="none" stroke="#f6b93b" stroke-width="1.2"/><circle cx="54" cy="47" r="4" fill="none" stroke="#f6b93b" stroke-width="1.2"/>
+      <path d="M50 47h0" stroke="#f6b93b"/>
+      <g transform="rotate(-12 66 74)"><rect x="60" y="68" width="14" height="17" rx="1.5" fill="#5a2d14"/><rect x="61" y="69" width="2" height="15" fill="#f6b93b"/><path d="M68 72v8M65 75h6" stroke="#f6b93b" stroke-width="1.3"/></g>
+    </symbol>
+    <symbol id="tkc" viewBox="0 0 100 100">
+      <use href="#tk" x="0" y="6" width="100" height="100"/>
+      <path d="M31 64q19-6 38 0l4 31H27z" fill="#d4a017"/>
+      <path d="M50 63l-6 12 6 20 6-20z" fill="#fff"/><path d="M50 66l-2 4 2 14 2-14z" fill="#8b1a1a"/>
+      <path d="M44 63l-5 14 8-3zM56 63l5 14-8-3z" fill="#b8860b"/>
+      <path d="M37 45q0-16 13-16t13 16" fill="none" stroke="#222" stroke-width="2.6"/>
+      <rect x="34" y="42" width="6" height="9" rx="2.5" fill="#222"/><rect x="60" y="42" width="6" height="9" rx="2.5" fill="#222"/>
+      <path d="M37 50q2 9 9 8" fill="none" stroke="#222" stroke-width="1.8"/><circle cx="46.5" cy="58" r="2" fill="#444"/>
+      <g transform="rotate(25 70 76)"><path d="M66 82l3-12" stroke="#f3e3c3" stroke-width="3" stroke-linecap="round"/><circle cx="68" cy="83" r="2" fill="#f3e3c3"/><circle cx="66" cy="83" r="2" fill="#f3e3c3"/><ellipse cx="70" cy="66" rx="6" ry="8" fill="#9c5a24"/><ellipse cx="68.5" cy="64" rx="2" ry="3" fill="#c97f3e"/></g>
+    </symbol>
+  </defs>
+</svg>
+<header>
+  <div class="brand"><svg aria-hidden="true"><use href="#tk"/></svg><h1>Thanksgiving <span>Jeopardy!</span></h1>
+    <div class="seg" role="group" aria-label="Choose a board"><button id="bKids" aria-pressed="true">Kids board</button><button id="bAdults" aria-pressed="false">Grown-ups board</button></div></div>
+  <div class="tools">
+    <a class="btn" href="./">⏱ Fishbowl</a>
+    <label class="sr" for="tLen" style="position:absolute;left:-9999px">Timer length</label>
+    <select class="sm" id="tLen" aria-label="Timer length"><option value="15" selected>15 sec timer</option><option value="30">30 sec timer</option><option value="45">45 sec timer</option><option value="60">60 sec timer</option><option value="0">No timer</option></select>
+    <button class="btn" id="sndBtn" aria-pressed="true">Beat: on</button>
+    <select class="sm" id="hostSel" aria-label="Choose the host"><option value="adults">Host: Preacher Turkey</option><option value="kids">Host: Southern Turkey</option><option value="coach">Host: Coach Turkey</option></select>
+    <button class="btn" id="voiceBtn" aria-pressed="true">Host voice: on</button>
+    <button class="btn hot" id="finalBtn">Final Jeopardy</button>
+    <button class="btn" id="fsBtn">Full screen</button>
+    <button class="btn" id="resetBtn">New game</button>
+  </div>
+</header>
+<main>
+  <div class="board" id="board"></div>
+  <div class="teams" id="teams"></div>
+  <svg class="strut" aria-hidden="true"><use href="#tk"/></svg>
+  <p class="note">Click a dollar amount to open a clue. The 15-second music timer starts with each clue, and a gobble means time's up. Players answer in the form of a question. One hidden Daily Double is on the board. Tap a team name to rename it.</p>
+</main>
+
+<div class="ov" id="ov" role="dialog" aria-modal="true" aria-labelledby="ovClue">
+  <button class="btn close" id="ovClose">Back to board</button>
+  <button class="btn again" id="sayAgain">Read it again</button>
+  <div class="host" id="host" aria-hidden="true"><div class="bubble" id="bubble"></div><svg><use id="hostUse" href="#tkp"/></svg></div>
+  <div class="meta" id="ovMeta"></div>
+  <div class="dd" id="ovDD" hidden><svg class="bigturk" aria-hidden="true"><use href="#tk"/></svg><br>Daily Double!</div>
+  <div class="timer" id="timer" hidden>
+    <div class="track"><div class="fill" id="tFill"></div><svg class="walker" id="tWalk" aria-hidden="true"><use href="#tk"/></svg><svg class="chaser" id="tChase" aria-hidden="true"><use href="#pil"/></svg></div>
+    <span class="tnum" id="tNum" aria-live="off">15</span>
+    <button class="tbtn" id="tPause">Pause</button>
+  </div>
+  <div class="row" id="ovPre"></div>
+  <div class="clue" id="ovClue"></div>
+  <div class="ans" id="ovAns"></div>
+  <div class="row" id="ovAct"></div>
+</div>
+
+<script>
+{
+const KIDS=[
+ {n:"Pilgrim Days",q:[
+  ["The ship that carried the Pilgrims across the Atlantic in 1620","What is the Mayflower?"],
+  ["The colony the Pilgrims founded in present-day Massachusetts","What is Plymouth?"],
+  ["The Native American nation that shared the 1621 harvest feast with the Pilgrims","Who are the Wampanoag?"],
+  ["This Wampanoag leader, or sachem, attended the 1621 feast with about 90 of his men","Who is Massasoit?"],
+  ["This Patuxet man spoke English and taught the colonists how to grow corn","Who is Squanto (Tisquantum)?"]]},
+ {n:"Talkin' Turkey",q:[
+  ["A male turkey is called a gobbler or this three-letter name","What is a tom?"],
+  ["A female turkey goes by this name, shared with chickens","What is a hen?"],
+  ["Each year the U.S. President spares a turkey with this official act","What is a pardon?"],
+  ["The fleshy red flap that dangles over a turkey's beak","What is a snood?"],
+  ["In a letter to his daughter, this Founding Father called the turkey 'a much more respectable bird' than the bald eagle","Who is Benjamin Franklin?"]]},
+ {n:"Parades & Pigskin",q:[
+  ["The New York department store that has hosted a famous Thanksgiving parade since 1924","What is Macy's?"],
+  ["This jolly figure traditionally rides the final float, kicking off the holiday season","Who is Santa Claus?"],
+  ["This NFL team has hosted a Thanksgiving game nearly every year since 1934","Who are the Detroit Lions?"],
+  ["Since 1966 (with two exceptions), this Texas team has also hosted on Thanksgiving","Who are the Dallas Cowboys?"],
+  ["The giant parade balloons are filled with this gas, the same one that makes party balloons float","What is helium?"]]},
+ {n:"On the Side",q:[
+  ["This tart red berry sauce often slides out of the can still holding its shape","What is cranberry sauce?"],
+  ["Sweet potato casserole is often topped with these toasted puffy treats","What are marshmallows?"],
+  ["Cooked inside the bird it's stuffing; baked in a separate dish many call it this","What is dressing?"],
+  ["This casserole, invented in a Campbell's test kitchen in 1955, is topped with crispy fried onions","What is green bean casserole?"],
+  ["The canned soup that holds green bean casserole together","What is cream of mushroom?"]]},
+ {n:"Proclaim It!",q:[
+  ["U.S. Thanksgiving falls on this Thursday of November","What is the fourth Thursday?"],
+  ["This country celebrates its Thanksgiving on the second Monday of October","What is Canada?"],
+  ["This president, famous for his tall top hat, made Thanksgiving a national holiday","Who is Abraham Lincoln?"],
+  ["Lincoln declared the national holiday in the middle of this war between the North and the South","What is the Civil War?"],
+  ["This president, known by his initials F.D.R., moved Thanksgiving a week earlier, so people jokingly called it 'Franksgiving'","Who is Franklin D. Roosevelt?"]]},
+ {n:"Leftovers",q:[
+  ["Two people pull on this forked bone, and the one with the bigger piece gets a wish","What is the wishbone?"],
+  ["A Southern favorite, this pie is loaded with nuts and corn syrup","What is pecan pie?"],
+  ["The busy shopping day right after Thanksgiving goes by this colorful name","What is Black Friday?"],
+  ["The online shopping day that follows Thanksgiving weekend","What is Cyber Monday?"],
+  ["This amino acid in turkey gets blamed for the post-dinner nap, though overeating is the bigger culprit","What is tryptophan?"]]}
+];
+const KIDS_FINAL={c:"The First Feast",q:"According to colonist Edward Winslow's account, the 1621 harvest celebration lasted this many days",a:"What is three days?"};
+const ADULTS=[
+ {n:"The Real Pilgrims",q:[
+  ["The Pilgrims belonged to this religious group, which wanted to break away from the Church of England entirely","Who are the Separatists?"],
+  ["Before sailing for America, the Pilgrims lived for about a dozen years in this European country","What is the Netherlands (Holland)?"],
+  ["The agreement signed aboard ship, before anyone set foot on land, to set up a self-governing body","What is the Mayflower Compact?"],
+  ["The Mayflower's companion ship, which leaked so badly it had to turn back","What is the Speedwell?"],
+  ["This longtime Plymouth governor wrote the colony's history, 'Of Plymouth Plantation'","Who is William Bradford?"]]},
+ {n:"Fowl Facts",q:[
+  ["The tuft of bristly, hair-like feathers on a male turkey's chest","What is a beard?"],
+  ["A turkey's bare head can shift between red, white and this color when it gets excited","What is blue?"],
+  ["The bird may have gotten its English name from a mix-up with guinea fowl traded through this country","What is Turkey?"],
+  ["The breed behind nearly every supermarket turkey in America","What is the Broad Breasted White?"],
+  ["The wild turkey's scientific name is Meleagris this","What is gallopavo?"]]},
+ {n:"Pour Decisions",q:[
+  ["This young French red is released on the third Thursday of November, just in time for the turkey","What is Beaujolais Nouveau?"],
+  ["Milk, cream, sugar, whipped eggs and usually a splash of something stronger","What is eggnog?"],
+  ["To be called bourbon, the whiskey's grain mix must be at least 51 percent this","What is corn?"],
+  ["Warm, spiced and often spiked with bourbon or rum, it's pressed from autumn apples","What is (hot) apple cider?"],
+  ["This aromatic white grape from Alsace, with notes of lychee and spice, is a sommelier's classic turkey pairing","What is Gewürztraminer?"]]},
+ {n:"Turkey Day Gridiron",q:[
+  ["This legendary broadcaster handed out turkey legs to the best players of the Thanksgiving game","Who is John Madden?"],
+  ["Madden helped make famous this dish: a chicken inside a duck inside a turkey","What is turducken?"],
+  ["The Detroit Lions' very first Thanksgiving opponent was this team, still their division rival","Who are the Chicago Bears?"],
+  ["This college rivalry, long played around Thanksgiving, pits the Texas Longhorns against this school's Aggies","What is Texas A&M?"],
+  ["The NFL's newer Black Friday game streams on this service","What is Amazon Prime Video?"]]},
+ {n:"Kitchen Nightmares",q:[
+  ["Soaking a turkey in salt water before cooking to keep it juicy","What is brining?"],
+  ["In degrees Fahrenheit, the safe internal temperature for cooked turkey","What is 165 degrees?"],
+  ["Thawing in the fridge takes about 24 hours for every this many pounds of bird","What is 4 to 5 pounds?"],
+  ["This company has run a Turkey Talk-Line for panicked holiday cooks for decades","What is Butterball?"],
+  ["Lowering a still-frozen bird into a deep fryer is dangerous because this turns to steam and makes the oil boil over","What is water (ice)?"]]},
+ {n:"Grown-Up Leftovers",q:[
+  ["A Thanksgiving dinner shared with friends instead of family","What is Friendsgiving?"],
+  ["The Tuesday after Thanksgiving, set aside for donating to charity","What is Giving Tuesday?"],
+  ["The night before Thanksgiving, one of the biggest bar nights of the year, has earned this nickname","What is Blackout Wednesday (Drinksgiving)?"],
+  ["Retailers like to say Black Friday is the day their books go from red to this","What is in the black?"],
+  ["Police in this city first used the term 'Black Friday' to describe the traffic and shopping chaos","What is Philadelphia?"]]}
+];
+const ADULTS_FINAL={c:"Holiday Songs",q:"Lydia Maria Child's poem about a sleigh ride to Grandfather's house for Thanksgiving is now sung under this title",a:"What is 'Over the River and Through the Wood'?"};
+let MODE="kids";try{MODE=localStorage.getItem("tg-jeopardy-mode")||"kids"}catch(e){}
+let CATS,FINAL;
+const setData=()=>{CATS=MODE==="adults"?ADULTS:KIDS;FINAL=MODE==="adults"?ADULTS_FINAL:KIDS_FINAL};setData();
+const VALS=[100,200,300,400,500];
+const KEY="tg-jeopardy-v1";
+const $=id=>document.getElementById(id);
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const fmt=n=>(n<0?"-$":"$")+Math.abs(n).toLocaleString();
+
+function fresh(){return{teams:[{n:"Team 1",s:0},{n:"Team 2",s:0},{n:"Team 3",s:0}],used:[],dd:[Math.floor(Math.random()*6),1+Math.floor(Math.random()*4)]}}
+let S;
+const SKEY=()=>MODE==="adults"?KEY+"-adults":KEY;
+function load(){S=null;try{S=JSON.parse(localStorage.getItem(SKEY()))}catch(e){}if(!S||!S.teams)S=fresh()}
+load();
+const save=()=>{try{localStorage.setItem(SKEY(),JSON.stringify(S))}catch(e){}};
+
+function renderBoard(){
+  let h=CATS.map(c=>`<div class="cat">${esc(c.n)}</div>`).join("");
+  for(let r=0;r<5;r++)for(let c=0;c<6;c++){
+    const id=c+"-"+r,used=S.used.includes(id);
+    h+=`<button class="tile" data-c="${c}" data-r="${r}" ${used?"disabled":""} aria-label="${esc(CATS[c].n)} for ${VALS[r]}${used?", used":""}">${used?'<svg class="mini" aria-hidden="true"><use href="#tk"/></svg>':`$${VALS[r]}<svg class="peek" aria-hidden="true"><use href="#tk"/></svg>`}</button>`;
+  }
+  $("board").innerHTML=h;
+}
+function renderTeams(){
+  $("teams").innerHTML=S.teams.map((t,i)=>`<div class="team">
+    <input value="${esc(t.n)}" data-i="${i}" aria-label="Team name">
+    <div class="score ${t.s<0?"neg":""}">${fmt(t.s)}</div>
+    <div class="adj"><button data-a="-100" data-i="${i}" aria-label="Subtract 100">−100</button><button data-a="100" data-i="${i}" aria-label="Add 100">+100</button>${S.teams.length>1?`<button class="x" data-del="${i}" aria-label="Remove team">✕</button>`:""}</div>
+  </div>`).join("")+(S.teams.length<8?`<button class="addteam" id="addTeam">+ Add team</button>`:"");
+}
+function render(){renderBoard();renderTeams();save()}
+
+$("teams").addEventListener("input",e=>{if(e.target.dataset.i!=null){S.teams[e.target.dataset.i].n=e.target.value;save()}});
+$("teams").addEventListener("click",e=>{
+  const b=e.target.closest("button");if(!b)return;
+  if(b.id==="addTeam"){S.teams.push({n:"Team "+(S.teams.length+1),s:0});render();return}
+  if(b.dataset.del!=null){S.teams.splice(+b.dataset.del,1);render();return}
+  if(b.dataset.a){S.teams[b.dataset.i].s+=+b.dataset.a;render()}
+});
+
+/* ---------- hip-hop beat + gobble (original, synthesized) ---------- */
+let AC=null,sound=true,cache={};
+try{sound=localStorage.getItem(KEY+"-snd")!=="off"}catch(e){}
+const sndBtn=$("sndBtn");
+const paintSnd=()=>{sndBtn.textContent="Beat: "+(sound?"on":"off");sndBtn.setAttribute("aria-pressed",sound)};paintSnd();
+sndBtn.onclick=()=>{sound=!sound;paintSnd();try{localStorage.setItem(KEY+"-snd",sound?"on":"off")}catch(e){};if(!sound)stopMusic();else if(T.running)startMusic()};
+function ac(){if(!AC){try{AC=new (window.AudioContext||window.webkitAudioContext)()}catch(e){return null}}if(AC.state==="suspended")AC.resume();return AC}
+function pluck(f){ /* Karplus–Strong plucked string, bright like a banjo */
+  if(cache[f])return cache[f];
+  const sr=AC.sampleRate,len=Math.floor(sr*1.1),b=AC.createBuffer(1,len,sr),d=b.getChannelData(0),N=Math.round(sr/f);
+  for(let i=0;i<N;i++)d[i]=Math.random()*2-1;
+  for(let i=N;i<len;i++)d[i]=(d[i-N]*.55+d[i-N+1]*.45)*.995;
+  return cache[f]=b;
+}
+function note(f,t,v){const s=AC.createBufferSource(),g=AC.createGain();s.buffer=pluck(f);g.gain.value=v;s.connect(g).connect(AC.destination);s.start(t)}
+/* original boom-bap beat: 16 steps per bar */
+let noiseBuf=null;
+function noise(){if(noiseBuf)return noiseBuf;const n=AC.sampleRate*.5,b=AC.createBuffer(1,n,AC.sampleRate),d=b.getChannelData(0);for(let i=0;i<n;i++)d[i]=Math.random()*2-1;return noiseBuf=b}
+function kick(t){const o=AC.createOscillator(),g=AC.createGain();o.frequency.setValueAtTime(150,t);o.frequency.exponentialRampToValueAtTime(42,t+.12);g.gain.setValueAtTime(1,t);g.gain.exponentialRampToValueAtTime(.001,t+.45);o.connect(g).connect(AC.destination);o.start(t);o.stop(t+.46)}
+function snare(t){const s=AC.createBufferSource(),f=AC.createBiquadFilter(),g=AC.createGain();s.buffer=noise();f.type="bandpass";f.frequency.value=1800;f.Q.value=.7;g.gain.setValueAtTime(.7,t);g.gain.exponentialRampToValueAtTime(.001,t+.2);s.connect(f).connect(g).connect(AC.destination);s.start(t);s.stop(t+.21);
+  const o=AC.createOscillator(),og=AC.createGain();o.type="triangle";o.frequency.setValueAtTime(220,t);og.gain.setValueAtTime(.35,t);og.gain.exponentialRampToValueAtTime(.001,t+.1);o.connect(og).connect(AC.destination);o.start(t);o.stop(t+.11)}
+function hat(t,open){const s=AC.createBufferSource(),f=AC.createBiquadFilter(),g=AC.createGain(),d=open?.18:.04;s.buffer=noise();f.type="highpass";f.frequency.value=7500;g.gain.setValueAtTime(open?.22:.16,t);g.gain.exponentialRampToValueAtTime(.001,t+d);s.connect(f).connect(g).connect(AC.destination);s.start(t);s.stop(t+d+.01)}
+function bass(f,t,d){const o=AC.createOscillator(),g=AC.createGain(),lp=AC.createBiquadFilter();o.type="sawtooth";o.frequency.value=f;lp.type="lowpass";lp.frequency.value=380;g.gain.setValueAtTime(.0001,t);g.gain.linearRampToValueAtTime(.32,t+.01);g.gain.exponentialRampToValueAtTime(.001,t+d);o.connect(lp).connect(g).connect(AC.destination);o.start(t);o.stop(t+d+.02)}
+const K=[1,0,0,0, 0,0,0,1, 0,0,1,0, 0,0,0,0], SN=[0,0,0,0, 1,0,0,0, 0,0,0,0, 1,0,0,1];
+const BASS=[[[55,0],[55,7],[65.4,10]],[[49,0],[49,7],[41.2,14]]]; /* two-bar bass line: [Hz, step] */
+let step=0,nextT=0,sched=null;
+function startMusic(){
+  if(!sound||!ac())return;stopMusic();step=0;nextT=AC.currentTime+.05;
+  if(MODE==="adults"){startGospel();return}
+  sched=setInterval(()=>{
+    while(nextT<AC.currentTime+.15){
+      const s=step%16,bar=Math.floor(step/16)%2,hurry=T.left<=5,dur=hurry?.105:.125; /* ~120 bpm, faster at the end */
+      if(K[s])kick(nextT);
+      if(SN[s])snare(nextT);
+      if(s%2===0||hurry)hat(nextT,s===14);
+      for(const [f,st] of BASS[bar])if(st===s)bass(f,nextT,.28);
+      nextT+=dur;step++;
+    }
+  },40);
+}
+/* original gospel groove: organ chords, hand claps, tambourine, walking bass (12/8 feel) */
+const mtof=m=>440*2**((m-69)/12);
+function organ(notes,t,d){
+  const m=AC.createGain(),tr=AC.createOscillator(),tg=AC.createGain();
+  m.gain.setValueAtTime(0,t);m.gain.linearRampToValueAtTime(.075,t+.06);m.gain.setValueAtTime(.075,t+d-.08);m.gain.linearRampToValueAtTime(0,t+d);
+  tr.frequency.value=6.2;tg.gain.value=.025;tr.connect(tg).connect(m.gain);tr.start(t);tr.stop(t+d+.05);
+  m.connect(AC.destination);
+  for(const n of notes)[[1,.55],[2,.3],[3,.14],[4,.08]].forEach(([k,v])=>{const o=AC.createOscillator(),g=AC.createGain();o.frequency.value=mtof(n)*k;g.gain.value=v;o.connect(g).connect(m);o.start(t);o.stop(t+d+.05)});
+}
+function clap(t){for(let k=0;k<3;k++){const s=AC.createBufferSource(),f=AC.createBiquadFilter(),g=AC.createGain(),tt=t+k*.011;s.buffer=noise();f.type="bandpass";f.frequency.value=1150;f.Q.value=.9;g.gain.setValueAtTime(k<2?.35:.6,tt);g.gain.exponentialRampToValueAtTime(.001,tt+(k<2?.02:.16));s.connect(f).connect(g).connect(AC.destination);s.start(tt);s.stop(tt+.17)}}
+function tamb(t,v){const s=AC.createBufferSource(),f=AC.createBiquadFilter(),g=AC.createGain();s.buffer=noise();f.type="highpass";f.frequency.value=9000;g.gain.setValueAtTime(v,t);g.gain.exponentialRampToValueAtTime(.001,t+.07);s.connect(f).connect(g).connect(AC.destination);s.start(t);s.stop(t+.08)}
+function gbass(m,t,d){const o=AC.createOscillator(),g=AC.createGain();o.type="triangle";o.frequency.value=mtof(m);g.gain.setValueAtTime(.0001,t);g.gain.linearRampToValueAtTime(.4,t+.01);g.gain.exponentialRampToValueAtTime(.001,t+d);o.connect(g).connect(AC.destination);o.start(t);o.stop(t+d+.02)}
+/* [bass, organ voicing] every two beats: C  C7  F  F#dim7  C/G  A7  Dm7  G7 */
+const GCH=[[36,[60,64,67,72]],[36,[60,64,67,70]],[41,[60,65,69,72]],[42,[60,63,66,69]],[43,[60,64,67,72]],[45,[61,64,67,69]],[38,[60,62,65,69]],[43,[59,62,65,67]]];
+function startGospel(){
+  sched=setInterval(()=>{
+    while(nextT<AC.currentTime+.15){
+      const hurry=T.left<=5,dur=hurry?.17:.21,s=step%12,ch=GCH[Math.floor(step/6)%GCH.length];
+      if(step%6===0)organ(ch[1],nextT,dur*6);
+      if(s===3||s===9)clap(nextT);
+      if(step%3===2)tamb(nextT,hurry?.2:.12);
+      if(step%3===0)gbass(ch[0]+(step%6===3?7:0),nextT,dur*2.6);
+      if(step%6===5)gbass(ch[0]-1,nextT,dur*.9);
+      nextT+=dur;step++;
+    }
+  },40);
+}
+function stopMusic(){if(sched){clearInterval(sched);sched=null}}
+function gob(t,f0,f1,len,vib,vol){ /* one warbly turkey burst */
+  const o=AC.createOscillator(),lfo=AC.createOscillator(),lg=AC.createGain(),bp=AC.createBiquadFilter(),g=AC.createGain();
+  o.type="sawtooth";o.frequency.setValueAtTime(f0,t);o.frequency.exponentialRampToValueAtTime(f1,t+len);
+  lfo.type="square";lfo.frequency.value=vib;lg.gain.value=f0*.3;lfo.connect(lg).connect(o.frequency);
+  bp.type="bandpass";bp.frequency.value=1000;bp.Q.value=1.3;
+  g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(vol,t+.02);g.gain.exponentialRampToValueAtTime(.001,t+len);
+  o.connect(bp).connect(g).connect(AC.destination);o.start(t);lfo.start(t);o.stop(t+len+.02);lfo.stop(t+len+.02);
+}
+function tone(type,t,pts,vol){ /* pts: [[time offset, Hz],...] */
+  const o=AC.createOscillator(),g=AC.createGain();o.type=type;o.frequency.setValueAtTime(pts[0][1],t);
+  for(const [dt,f] of pts.slice(1))o.frequency.exponentialRampToValueAtTime(f,t+dt);
+  const end=pts[pts.length-1][0];g.gain.setValueAtTime(vol,t);g.gain.setValueAtTime(vol,t+end*.8);g.gain.exponentialRampToValueAtTime(.001,t+end);
+  o.connect(g).connect(AC.destination);o.start(t);o.stop(t+end+.02);
+}
+function gobble(){ /* the most ridiculous gobble we could make */
+  if(!sound||!ac())return;
+  let t=AC.currentTime+.02;
+  for(let k=0;k<7;k++){gob(t,420+k*90,300+k*60,.14,34,.45);t+=.12}
+  tone("sine",t,[[0,350],[.45,2000]],.35);t+=.45;
+  tone("sine",t,[[0,2000],[.5,260]],.35);t+=.5;
+  for(let k=0;k<6;k++)tone("triangle",t+k*.07,[[0,180+(k%2?90:0)],[.07,140]],.5*(1-k/7));
+  t+=.45;
+  tone("square",t,[[0,240],[.12,180]],.12);tone("square",t+.14,[[0,240],[.18,150]],.12);
+  t+=.38;
+  gob(t,260,140,.9,16,.6);gob(t,520,260,.9,19,.3);
+}
+/* ---------- timer ---------- */
+const T={len:15,left:15,running:false,id:null,end:0};
+try{const v=localStorage.getItem(KEY+"-len2");if(v!=null)$("tLen").value=v}catch(e){}
+$("tLen").onchange=()=>{try{localStorage.setItem(KEY+"-len2",$("tLen").value)}catch(e){}};
+function paintT(){
+  const p=T.len?T.left/T.len:0;
+  $("tFill").style.width=(p*100)+"%";
+  const tx=p*85,cx=Math.min(100,tx+3+12*p); /* pilgrim closes the gap as time runs out */
+  $("tWalk").style.left=tx+"%";$("tChase").style.left=cx+"%";
+  $("tNum").textContent=Math.ceil(T.left);
+  $("timer").classList.toggle("low",T.left<=5);
+}
+function startTimer(sec){
+  stopTimer();const len=sec??+$("tLen").value;
+  if(!len){$("timer").hidden=true;return}
+  T.len=len;T.left=len;T.running=true;$("timer").hidden=false;$("timer").classList.remove("caught");$("tPause").textContent="Pause";
+  T.end=performance.now()+len*1000;paintT();startMusic();
+  T.id=setInterval(tick,100);
+}
+function tick(){
+  T.left=Math.max(0,(T.end-performance.now())/1000);paintT();
+  if(T.left<=0){stopTimer();$("timer").classList.add("caught");gobble();$("ovPre").insertAdjacentHTML("beforeend",'<div class="timesup" id="tup">GOBBLE GOBBLE GOBBLE!!! Time\'s up!</div>')}
+}
+function stopTimer(){clearInterval(T.id);T.id=null;T.running=false;stopMusic();const u=$("tup");if(u)u.remove()}
+function hideTimer(){stopTimer();$("timer").hidden=true}
+$("tPause").onclick=()=>{
+  if(T.running){clearInterval(T.id);T.running=false;stopMusic();$("tPause").textContent="Resume"}
+  else if(T.left>0){T.end=performance.now()+T.left*1000;T.running=true;T.id=setInterval(tick,100);startMusic();$("tPause").textContent="Pause"}
+};
+
+/* ---------- the host: a pilgrim turkey who reads clues (Southern-ish) ---------- */
+let voiceOn=true,sayTok=0,lastSay=null;
+try{voiceOn=localStorage.getItem(KEY+"-voice")!=="off"}catch(e){}
+const SS=window.speechSynthesis;
+const vBtn=$("voiceBtn");
+const paintV=()=>{vBtn.textContent="Host voice: "+(voiceOn?"on":"off");vBtn.setAttribute("aria-pressed",voiceOn)};paintV();
+if(!SS){vBtn.textContent="Host voice: not supported";vBtn.disabled=true;voiceOn=false}
+vBtn.onclick=()=>{voiceOn=!voiceOn;paintV();try{localStorage.setItem(KEY+"-voice",voiceOn?"on":"off")}catch(e){};if(!voiceOn)hush()};
+/* rank voices: natural/neural/online voices sound far less robotic */
+function pickVoice(){
+  const vs=SS?SS.getVoices():[];let best=null,bs=-1;
+  for(const v of vs){
+    if(!/^en/i.test(v.lang))continue;
+    let sc=0;
+    if(/natural|neural|online|premium|enhanced|wavenet/i.test(v.name))sc+=20;
+    const male=/\bmale\b|guy|davis|andrew|christopher|eric|roger|steffan|brian|tony|jason|guy|alex|fred|daniel|aaron|tom|evan|nathan|reed|eddy|rocko|grandpa|ralph|junior|james|george|ryan|thomas|william|liam/i.test(v.name);
+    const female=/female|samantha|zira|aria|jenny|ava|allison|susan|victoria|karen|moira|tessa|michelle|emma|sonia|libby|natasha|serena|kate|fiona|veena|google us english|google uk english female|nicky|joelle|flo|sandy|shelley|grandma/i.test(v.name);
+    if(HH().male){if(male&&!female)sc+=30;if(female)sc-=30}
+    else if(/google us english/i.test(v.name))sc+=12;
+    if(HH().vre.test(v.name))sc+=8;
+    if(/en[-_]US/i.test(v.lang))sc+=4;
+    if(!v.localService)sc+=2;
+    if(/novelty|whisper|bad news|bells|bubbles|cellos|zarvox|trinoids|organ|boing|jester|superstar|wobble/i.test(v.name))sc-=50;
+    if(sc>bs){bs=sc;best=v}
+  }
+  return best;
+}
+const pick=a=>a[Math.floor(Math.random()*a.length)];
+const HOSTS={
+ kids:{svg:"#tkp",pitch:1.25,rate:.86,vre:/aaron|fred|samantha|google us english/i,
+  intros:["Well howdy, y'all!","Alrighty now, listen up, sugar!","Hold your horses, y'all!","Well butter my biscuit!","Gather 'round, darlin's!"],
+  outros:["Bless your hearts, go on and answer now!","Fixin' to start that clock, y'all!","Don't dilly-dally now!","Take it away, y'all!"],
+  right:["Well I'll be! That's ","Yee-haw, it's ","Shoot, the answer is "],
+  bClue:v=>"For $"+v+"… y'all ready?",
+  ddAnn:"Well butter my biscuit and call me a turkey! It's a Daily Double, y'all! How much y'all fixin' to wager?",bDD:"DAILY DOUBLE, Y'ALL!",
+  ddClue:n=>"Alrighty, "+n+", here it comes. ",bDDClue:"Here it comes, sugar!",
+  finCat:c=>"Well, y'all, it's time for Final Jeopardy! The category is: "+c+". Go on and make your wagers.",
+  finQ:"Alright y'all, this is it, Final Jeopardy. ",finEnd:"Write it down, y'all have thirty seconds!",bFin:"Final Jeopardy, y'all!",
+  win:w=>"Well I'll be a deep fried turkey! "+w+" wins! Happy Thanksgiving, y'all!"},
+ coach:{svg:"#tkc",male:true,pitch:.85,rate:1.06,vre:/guy|davis|andrew|christopher|eric|roger|brian|tom|evan|aaron|fred|daniel|alex|male/i,
+  intros:["Boom! Here's a clue for ya!","Now here's a guy, standin' there, lookin' at this board, and he picks it!","Whap! Let's go!","You know, this is what Thanksgiving is all about!","Now I'll tell ya something!"],
+  outros:["Somebody's gotta make a play here!","Ya gotta want it! Answer now!","If ya know it, ya know it! Boom!","Don't fumble it now!"],
+  right:["Boom! That's ","Doink! It's ","There it is! "],
+  bClue:v=>"For $"+v+"… BOOM!",
+  ddAnn:"Whoa! Whap! Boom! It's a Daily Double! Now this is where ya find out who the real players are. How much ya gonna wager?",bDD:"DAILY DOUBLE! BOOM!",
+  ddClue:n=>"Alright, "+n+", here's the snap. ",bDDClue:"Here's the snap!",
+  finCat:c=>"Now this is the fourth quarter, folks! Two minute warning! Final Jeopardy! The category is: "+c+". Make your wagers!",
+  finQ:"Here it comes. ",finEnd:"Thirty seconds on the clock. Write it down! Boom!",bFin:"Fourth quarter! BOOM!",
+  win:w=>"Boom! Game over! "+w+" wins! And ya know what that means. Somebody gets a turkey leg! Happy Thanksgiving!"},
+ adults:{svg:"#tkr",male:true,pitch:.88,rate:.93,vre:/guy|davis|andrew|christopher|roger|brian|aaron|fred|alex|tom|male/i,
+  intros:["Church, can I get an amen?","Hallelujah, saints!","Somebody say gravy!","Brothers and sisters, lean in close now!","Turn with me now to the next clue!"],
+  outros:["Can I get a witness? Answer now!","The spirit is moving, go on and answer!","Don't let that clock catch you sleeping in the back pew!","Somebody testify!"],
+  right:["Glory! The answer is ","Say it with me, church: ","Amen and amen! That's "],
+  bClue:v=>"For $"+v+"… can I get an amen?",
+  ddAnn:"Oh, somebody has been blessed tonight! It's a Daily Double! Now how much faith have you got? Lay your wager on the altar!",bDD:"DAILY DOUBLE! Hallelujah!",
+  ddClue:n=>"Alright, "+n+", the good Lord loves a cheerful wager. Here it comes. ",bDDClue:"Here it comes, saints!",
+  finCat:c=>"Church, we have come to the final hymn of the evening. Final Jeopardy! The category is: "+c+". Lay your wagers down.",
+  finQ:"Here it is, the last word. ",finEnd:"You have thirty seconds. Write it down and believe!",bFin:"Final Jeopardy! Amen!",
+  win:w=>"Let the church say amen! "+w+" wins! Happy Thanksgiving, now somebody pass the sweet potato pie!"}
+};
+const hostKey=()=>KEY+"-host2-"+MODE;
+let HOSTSEL={};
+function hostFor(){if(HOSTSEL[MODE])return HOSTSEL[MODE];let v=null;try{v=localStorage.getItem(hostKey())}catch(e){}return HOSTSEL[MODE]=(v&&HOSTS[v])?v:(MODE==="adults"?"adults":"kids")}
+const HH=()=>HOSTS[hostFor()];
+function drawl(s){if(hostFor()!=="kids")return s; /* sprinkle a little Southern on the clue */
+  return s.replace(/\bthis\b/g,"this here").replace(/\bThis\b/g,"This here").replace(/\byou\b/g,"y'all").replace(/\bgoing to\b/g,"fixin' to");
+}
+function hush(){sayTok++;if(SS)SS.cancel();$("host").classList.remove("talk");$("bubble").classList.remove("show")}
+function say(text,bubble,done){
+  hush();const tok=sayTok;lastSay=[text,bubble];
+  $("bubble").textContent=bubble||"";
+  const fin=()=>{if(tok!==sayTok)return;$("host").classList.remove("talk");if(bubble)$("bubble").classList.add("show");done&&done()};
+  if(!voiceOn||!SS){if(bubble)$("bubble").classList.add("show");done&&done();return}
+  const H=HH(),v=pickVoice();
+  /* speak sentence by sentence, varying pitch and pace so it sounds less like a robot */
+  const parts=text.replace(/…/g,", ").split(/(?<=[.!?])\s+/).filter(x=>x.trim());
+  let i=0,watchdog=null;
+  const next=()=>{
+    clearTimeout(watchdog);
+    if(tok!==sayTok)return;
+    if(i>=parts.length){fin();return}
+    const s=parts[i++],u=new SpeechSynthesisUtterance(s),ex=/!$/.test(s),q=/\?$/.test(s),short=s.length<28;
+    if(v)u.voice=v;u.lang=(v&&v.lang)||"en-US";
+    const j=(Math.random()-.5)*.06;
+    u.pitch=Math.min(2,Math.max(.1,H.pitch+j+(ex?.07:0)+(q?.05:0)));
+    u.rate=Math.min(2,H.rate+j*.5+(ex&&short?.12:0)+(i===1?.03:0));
+    u.volume=1;
+    u.onstart=()=>{if(tok===sayTok)$("host").classList.add("talk")};
+    u.onend=()=>setTimeout(next,ex?60:120);u.onerror=()=>next();
+    watchdog=setTimeout(()=>{if(tok===sayTok&&!SS.speaking)next()},Math.max(2500,s.length*110));
+    SS.speak(u);
+  };
+  next();
+}
+if(SS&&SS.onvoiceschanged!==undefined)SS.onvoiceschanged=()=>{};
+$("sayAgain").onclick=()=>{if(lastSay)say(lastSay[0],lastSay[1])};
+/* overlay */
+const ov=$("ov");
+let lastFocus=null;
+function openOv(){lastFocus=document.activeElement;ov.classList.add("open");$("ovClose").focus()}
+function closeOv(){hideTimer();hush();ov.classList.remove("open");render();if(lastFocus&&document.body.contains(lastFocus))lastFocus.focus()}
+$("ovClose").onclick=closeOv;
+document.addEventListener("keydown",e=>{if(e.key==="Escape"&&ov.classList.contains("open"))closeOv()});
+
+function judges(getVal,onDone){
+  $("ovAct").innerHTML=S.teams.map((t,i)=>`<div class="judge" data-j="${i}"><b>${esc(t.n)}</b><button class="ok" data-ok="${i}" aria-label="${esc(t.n)} correct">✓</button><button class="no" data-no="${i}" aria-label="${esc(t.n)} wrong">✗</button></div>`).join("")+`<button class="btn big hot" id="doneBtn">Done</button>`;
+  $("ovAct").onclick=e=>{
+    const b=e.target.closest("button");if(!b)return;
+    if(b.id==="doneBtn"){onDone&&onDone();closeOv();return}
+    const i=b.dataset.ok??b.dataset.no;if(i==null)return;
+    const j=b.closest(".judge");if(j.classList.contains("done"))return;
+    S.teams[i].s+=(b.dataset.ok!=null?1:-1)*getVal(+i);j.classList.add("done");save();
+    if(b.dataset.ok!=null&&!onDone){$("ovAns").textContent=$("ovAns").textContent||$("ovAns").dataset.a}
+  };
+}
+function revealBtn(a,after){
+  $("ovAns").textContent="";$("ovAns").dataset.a=a;
+  $("ovAct").innerHTML=`<button class="btn big hot" id="revBtn">Reveal answer</button>`;
+  $("ovAct").onclick=e=>{if(e.target.id==="revBtn"){stopTimer();$("ovAns").textContent=a;say(pick(HH().right)+a,a);after()}};
+}
+
+$("board").addEventListener("click",e=>{
+  const t=e.target.closest(".tile");if(!t||t.disabled)return;
+  const c=+t.dataset.c,r=+t.dataset.r,[q,a]=CATS[c].q[r],val=VALS[r];
+  S.used.push(c+"-"+r);save();
+  const isDD=S.dd[0]===c&&S.dd[1]===r;hideTimer();
+  $("ovMeta").textContent=CATS[c].n+" · $"+val;
+  $("ovDD").hidden=!isDD;$("ovAns").textContent="";$("ovPre").innerHTML="";
+  if(isDD){
+    $("ovClue").textContent="";
+    const max=i=>Math.max(S.teams[i].s,500);
+    $("ovPre").innerHTML=`<div class="wager"><label for="ddTeam">Team</label><select id="ddTeam">${S.teams.map((x,i)=>`<option value="${i}">${esc(x.n)}</option>`).join("")}</select>
+      <label for="ddW">Wager</label><input id="ddW" type="number" inputmode="numeric" min="0" step="100" value="${val}"></div>`;
+    const maxNote=()=>{$("ovMeta").textContent=CATS[c].n+" · wager up to "+fmt(max(+$("ddTeam").value))};
+    $("ddTeam").onchange=maxNote;maxNote();
+    say(HH().ddAnn,HH().bDD);
+    $("ovAct").innerHTML=`<button class="btn big hot" id="ddGo">Show the clue</button>`;
+    $("ovAct").onclick=ev=>{
+      if(ev.target.id!=="ddGo")return;
+      const ti=+$("ddTeam").value,w=Math.min(Math.max(0,Math.round(+$("ddW").value||0)),max(ti));
+      $("ovPre").innerHTML=`<div class="meta">${esc(S.teams[ti].n)} wagers ${fmt(w)}</div>`;
+      $("ovClue").textContent=q;
+      say(HH().ddClue(S.teams[ti].n)+drawl(q)+". "+pick(HH().outros),HH().bDDClue,()=>{if(ov.classList.contains("open")&&!$("ovAns").textContent)startTimer()});
+      revealBtn(a,()=>{
+        $("ovAct").innerHTML=`<button class="btn big" style="background:#2e7d32" id="ddR">Correct +${fmt(w)}</button><button class="btn big warn" id="ddX">Wrong −${fmt(w)}</button>`;
+        $("ovAct").onclick=e2=>{if(e2.target.id==="ddR"){S.teams[ti].s+=w;closeOv()}else if(e2.target.id==="ddX"){S.teams[ti].s-=w;closeOv()}};
+      });
+    };
+  }else{
+    $("ovClue").textContent=q;
+    revealBtn(a,()=>judges(()=>val));
+    /* judging also available before reveal: show buttons under reveal */
+    const rev=$("ovAct").innerHTML;
+    judges(()=>val);
+    $("ovAct").insertAdjacentHTML("afterbegin",rev);
+    const inner=$("ovAct").onclick;
+    $("ovAct").onclick=ev=>{if(ev.target.id==="revBtn"){stopTimer();$("ovAns").textContent=a;say(pick(HH().right)+a,a);ev.target.remove();return}inner(ev)};
+    say(pick(HH().intros)+" For "+val+" dollars, in "+CATS[c].n+". "+drawl(q)+". "+pick(HH().outros),HH().bClue(val),()=>{if(ov.classList.contains("open")&&!$("ovAns").textContent)startTimer()});
+  }
+  render();openOv();
+});
+
+/* final jeopardy */
+$("finalBtn").onclick=()=>{
+  $("ovMeta").textContent="Final Jeopardy · "+FINAL.c;
+  $("ovDD").hidden=true;$("ovAns").textContent="";hideTimer();
+  $("ovClue").textContent="Category: "+FINAL.c;
+  say(HH().finCat(FINAL.c),"The category is "+FINAL.c);
+  $("ovPre").innerHTML=S.teams.map((t,i)=>`<div class="wager"><label for="fw${i}">${esc(t.n)} <small>(max ${fmt(Math.max(0,t.s))})</small></label><input id="fw${i}" type="number" inputmode="numeric" min="0" step="100" value="0"></div>`).join("");
+  $("ovAct").innerHTML=`<button class="btn big hot" id="fGo">Lock wagers &amp; show clue</button>`;
+  $("ovAct").onclick=e=>{
+    if(e.target.id!=="fGo")return;
+    const W=S.teams.map((t,i)=>Math.min(Math.max(0,Math.round(+$("fw"+i).value||0)),Math.max(0,t.s)));
+    $("ovPre").innerHTML=`<div class="meta">Wagers locked. Write your answers down!</div>`;
+    $("ovClue").textContent=FINAL.q;
+    say(HH().finQ+drawl(FINAL.q)+". "+HH().finEnd,HH().bFin,()=>{if(ov.classList.contains("open")&&!$("ovAns").textContent)startTimer(30)});
+    revealBtn(FINAL.a,()=>{
+      judges(i=>W[i],()=>{});
+      const lead=()=>{const m=Math.max(...S.teams.map(t=>t.s));return S.teams.filter(t=>t.s===m).map(t=>t.n).join(" & ")};
+      $("doneBtn").textContent="Crown the winner";
+      $("doneBtn").onclick=ev=>{ev.stopPropagation();$("ovPre").innerHTML="";$("ovMeta").textContent="Game over";$("ovClue").innerHTML='<svg class="bigturk" aria-hidden="true"><use href="#tk"/></svg><br>';$("ovClue").append(lead()+" wins!");gobble();setTimeout(()=>say(HH().win(lead()),lead()+" wins!"),3400);$("ovAns").textContent=S.teams.map(t=>t.n+": "+fmt(t.s)).join("   ·   ");$("ovAct").innerHTML=`<button class="btn big hot" id="endBtn">Back to board</button>`;$("ovAct").onclick=x=>{if(x.target.id==="endBtn")closeOv()};save()};
+    });
+  };
+  openOv();
+};
+
+/* reset with two-step confirm */
+let armed=null;
+$("resetBtn").onclick=()=>{
+  const b=$("resetBtn");
+  if(!armed){b.textContent="Click again to reset";b.classList.add("warn");armed=setTimeout(()=>{armed=null;b.textContent="New game";b.classList.remove("warn")},3000);return}
+  clearTimeout(armed);armed=null;b.textContent="New game";b.classList.remove("warn");
+  const names=S.teams.map(t=>({n:t.n,s:0}));S=fresh();S.teams=names;render();
+};
+$("fsBtn").onclick=()=>{try{document.fullscreenElement?document.exitFullscreen():document.documentElement.requestFullscreen().catch(()=>{})}catch(e){}};
+
+function paintMode(){
+  $("bKids").setAttribute("aria-pressed",MODE==="kids");$("bAdults").setAttribute("aria-pressed",MODE==="adults");
+  $("hostUse").setAttribute("href",HH().svg);$("hostSel").value=hostFor();
+  sndBtn.textContent=(MODE==="adults"?"Gospel: ":"Beat: ")+(sound?"on":"off");
+}
+function setMode(m){
+  if(m===MODE)return;hideTimer();hush();if(ov.classList.contains("open"))closeOv();
+  MODE=m;try{localStorage.setItem("tg-jeopardy-mode",m)}catch(e){}
+  setData();load();paintMode();render();
+}
+$("hostSel").onchange=()=>{HOSTSEL[MODE]=$("hostSel").value;try{localStorage.setItem(hostKey(),HOSTSEL[MODE])}catch(e){};hush();paintMode();say(pick(HH().intros),"Hey there!")};
+$("bKids").onclick=()=>setMode("kids");$("bAdults").onclick=()=>setMode("adults");
+const oldSnd=sndBtn.onclick;sndBtn.onclick=()=>{oldSnd();paintMode()};
+paintMode();
+render();
+}
+</script>
+</body>
+</html>
