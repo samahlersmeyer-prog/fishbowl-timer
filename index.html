@@ -58,6 +58,12 @@
   <div class="panel">
     <div class="turn" id="turnLabel"></div>
     <div class="timer" id="timer">0:45</div>
+    <div class="row" style="margin-bottom:10px">
+      <button class="small" id="minus15">&minus;15s</button>
+      <button class="small" id="minus5">&minus;5s</button>
+      <button class="small" id="plus5">+5s</button>
+      <button class="small" id="plus15">+15s</button>
+    </div>
     <div class="row">
       <button class="primary" id="startBtn">Start</button>
       <button id="pauseBtn" disabled>Pause</button>
@@ -103,7 +109,7 @@
 
 <script>
 (function () {
-  const TURN = 45;
+  let TURN = 45; // default turn length; changes when you adjust the time while stopped
   const ROUNDS = [
     { name: "Round 1: Describe", rule: "Say anything except the word itself." },
     { name: "Round 2: One Word", rule: "Say exactly one word." },
@@ -242,6 +248,19 @@
   $("startBtn").onclick = () => { unlockAudio(); if (left === 0) reset(); start(); };
   $("pauseBtn").onclick = () => { if (ticker) pause(); else start(); };
   $("resetBtn").onclick = reset;
+
+  // Adjust the clock by seconds. Stopped: also sets the default turn length, so Reset returns to it.
+  function adjust(d) {
+    left = Math.min(600, Math.max(5, left + d));
+    if (!ticker) TURN = left;
+    renderTimer();
+    setRunning(!!ticker);
+    if (!ticker) { $("startBtn").disabled = false; $("startBtn").textContent = "Start"; }
+  }
+  $("minus15").onclick = () => adjust(-15);
+  $("minus5").onclick = () => adjust(-5);
+  $("plus5").onclick = () => adjust(5);
+  $("plus15").onclick = () => adjust(15);
   $("switchBtn").onclick = () => { team = 1 - team; renderTurn(); };
   $("plusA").onclick = () => bump(0, 1);
   $("minusA").onclick = () => bump(0, -1);
