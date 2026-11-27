@@ -39,6 +39,11 @@
   .turn { text-align:center; font-weight:700; margin-bottom:4px; }
   .turn.a { color: var(--a); } .turn.b { color: var(--b); }
   .muted { color: var(--muted); font-size:.85rem; text-align:center; margin-top:8px; }
+  .label-s { font-weight:700; margin: 0 0 6px; text-align:center; }
+  ul.plist { list-style:none; padding:0; margin:8px 0 0; }
+  ul.plist li { display:flex; justify-content:space-between; align-items:center; padding:6px 4px; border-bottom:1px solid #343b4f; }
+  ul.plist li.up { color: var(--accent); font-weight:700; }
+  ul.plist button { padding:4px 8px; font-size:.8rem; }
 </style>
 </head>
 <body>
@@ -97,6 +102,23 @@
   </div>
 
   <div class="panel">
+    <h2 style="margin:0 0 10px;color:var(--accent);font-size:1.05rem;text-align:center">Players</h2>
+    <div class="teams">
+      <div>
+        <div class="label-s" style="color:var(--a)" id="plabelA">Team A</div>
+        <input type="text" id="pInputA" placeholder="Add a name, then Enter" maxlength="24" style="width:100%;padding:10px;border-radius:10px;border:1px solid #3a4258;background:#1f2430;color:var(--ink);font:inherit">
+        <ul class="plist" id="pListA"></ul>
+      </div>
+      <div>
+        <div class="label-s" style="color:var(--b)" id="plabelB">Team B</div>
+        <input type="text" id="pInputB" placeholder="Add a name, then Enter" maxlength="24" style="width:100%;padding:10px;border-radius:10px;border:1px solid #3a4258;background:#1f2430;color:var(--ink);font:inherit">
+        <ul class="plist" id="pListB"></ul>
+      </div>
+    </div>
+    <div class="muted">Players take turns in order. Each team's next player goes up when you switch teams.</div>
+  </div>
+
+  <div class="panel">
     <table>
       <thead><tr><th>Round</th><th id="thA">Team A</th><th id="thB">Team B</th></tr></thead>
       <tbody id="log"></tbody>
@@ -128,12 +150,52 @@
     $("timer").classList.toggle("done", left === 0);
   }
 
+  let players = [[], []];
+  let pIdx = [0, 0];
+  function upPlayer(t) { return players[t].length ? players[t][pIdx[t] % players[t].length] : ""; }
+
   function renderTurn() {
     const name = ($("nameA").value.trim() || "Team A");
     const name2 = ($("nameB").value.trim() || "Team B");
-    $("turnLabel").textContent = (team === 0 ? name : name2) + "'s turn";
+    const teamName = team === 0 ? name : name2;
+    const who = upPlayer(team);
+    $("turnLabel").textContent = who ? teamName + ": " + who + "'s turn" : teamName + "'s turn";
     $("turnLabel").className = "turn " + (team === 0 ? "a" : "b");
+    $("plabelA").textContent = name;
+    $("plabelB").textContent = name2;
   }
+
+  function renderPlayers() {
+    [0, 1].forEach(t => {
+      const ul = $(t === 0 ? "pListA" : "pListB");
+      ul.innerHTML = "";
+      players[t].forEach((p, i) => {
+        const li = document.createElement("li");
+        const up = players[t].length && i === pIdx[t] % players[t].length;
+        if (up) li.className = "up";
+        const span = document.createElement("span"); span.textContent = (up ? "▶ " : "") + p;
+        const btn = document.createElement("button"); btn.textContent = "Remove";
+        btn.onclick = () => {
+          players[t].splice(i, 1);
+          if (pIdx[t] > i) pIdx[t]--;
+          if (players[t].length) pIdx[t] %= players[t].length; else pIdx[t] = 0;
+          renderPlayers(); renderTurn();
+        };
+        li.append(span, btn); ul.append(li);
+      });
+    });
+  }
+
+  function addPlayer(t) {
+    const input = $(t === 0 ? "pInputA" : "pInputB");
+    const v = input.value.trim();
+    if (!v) return;
+    players[t].push(v); input.value = "";
+    renderPlayers(); renderTurn();
+    input.focus();
+  }
+  $("pInputA").addEventListener("keydown", e => { if (e.key === "Enter") addPlayer(0); });
+  $("pInputB").addEventListener("keydown", e => { if (e.key === "Enter") addPlayer(1); });
 
   function renderRound() {
     $("roundName").textContent = ROUNDS[round].name;
@@ -261,7 +323,12 @@
   $("minus5").onclick = () => adjust(-5);
   $("plus5").onclick = () => adjust(5);
   $("plus15").onclick = () => adjust(15);
-  $("switchBtn").onclick = () => { team = 1 - team; renderTurn(); };
+  $("switchBtn").onclick = () => {
+    // The team that just went hands its turn to its next player.
+    if (players[team].length) pIdx[team] = (pIdx[team] + 1) % players[team].length;
+    team = 1 - team;
+    renderPlayers(); renderTurn();
+  };
   $("plusA").onclick = () => bump(0, 1);
   $("minusA").onclick = () => bump(0, -1);
   $("plusB").onclick = () => bump(1, 1);
